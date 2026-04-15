@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+/* p {
+    @apply text-gray-600;
+}    */
+
+.text-legend {
+    @apply uppercase tracking-[0.2em];
+}
+
+/* .bg-window-gradient {
+    @apply bg-[radial-gradient(circle_at_15%_20%,#ffd89f_0,rgba(255,216,159,0)_35%),radial-gradient(circle_at_80%_90%,#ff9eb6_0,rgba(255,158,182,0)_40%),linear-gradient(140deg,#f7f6ef_0%,#eef5ff_100%)];
+} */
+
+/* .bg-black-gradient {
+    @apply bg-[linear-gradient(170deg, rgba(5, 18, 36, 0.86), rgba(22, 48, 82, 0.78))];
+} */
+
+.bg-gradient {
+    @apply bg-gradient-to-r from-[#fd6f2d] to-primary;
+}
+
+.dark-border {
+    @apply border border-[#6ab4ff66];
+}
+
+.light-border {
+    @apply border border-[#6ab4ff66];
+}
