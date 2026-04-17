@@ -1,5 +1,5 @@
 const API_BASE_URL = 'https://pokeapi.co/api/v2'
-const MAX_POKEMON_ID = 898
+export const MAX_POKEMON_ID = 898
 
 const statToGameKey = {
   hp: 'hp',
@@ -82,6 +82,10 @@ async function fetchFromPokeAPI(path) {
   return response.json()
 }
 
+async function fetchPokemonSpeciesById(id) {
+  return fetchFromPokeAPI(`/pokemon-species/${id}`)
+}
+
 export async function fetchPokemonById(id, options = {}) {
   const isShiny = Boolean(options.isShiny)
   const rawPokemon = await fetchFromPokeAPI(`/pokemon/${id}`)
@@ -109,4 +113,55 @@ export async function fetchRandomWildPokemons(count = 3) {
   })
 
   return Promise.all(requests)
+}
+
+let cachedLegendaryIds = null
+let legendaryIdsPromise = null
+
+export async function fetchLegendaryPokemonIds(limit = 50) {
+  if (Array.isArray(cachedLegendaryIds)) {
+    return cachedLegendaryIds
+  }
+
+  if (legendaryIdsPromise) {
+    return legendaryIdsPromise
+  }
+
+  const safeLimit = Math.max(Math.min(Number(limit) || 50, MAX_POKEMON_ID), 1)
+
+  legendaryIdsPromise = (async () => {
+    const legendaryIds = []
+
+    for (let startId = 1; startId <= MAX_POKEMON_ID; startId += safeLimit) {
+      const endId = Math.min(startId + safeLimit - 1, MAX_POKEMON_ID)
+      const batchIds = []
+
+      for (let id = startId; id <= endId; id += 1) {
+        batchIds.push(id)
+      }
+
+      const batchResults = await Promise.all(
+        batchIds.map((id) => fetchPokemonSpeciesById(id).catch(() => null)),
+      )
+
+      for (const entry of batchResults) {
+        if (!entry) {
+          continue
+        }
+
+        if (entry.is_legendary || entry.is_mythical) {
+          legendaryIds.push(entry.id)
+        }
+      }
+    }
+
+    cachedLegendaryIds = legendaryIds
+    return legendaryIds
+  })()
+
+  try {
+    return await legendaryIdsPromise
+  } finally {
+    legendaryIdsPromise = null
+  }
 }

@@ -91,6 +91,24 @@ export function getPokemonBaseAttack(pokemon) {
   return Math.max(Math.round(attack), 1)
 }
 
+export function getPokemonBaseHp(pokemon) {
+  if (!pokemon || typeof pokemon !== 'object') {
+    return 80
+  }
+
+  let hpValue = pokemon.baseHp
+  if (hpValue == null && pokemon.stats && typeof pokemon.stats === 'object') {
+    hpValue = pokemon.stats.hp
+  }
+
+  const hp = Number(hpValue)
+  if (!Number.isFinite(hp)) {
+    return 80
+  }
+
+  return Math.max(Math.round(hp), 1)
+}
+
 export function normalizePokemonEntry(pokemon) {
   const pokemonId = toPokemonId(pokemon)
   if (pokemonId === null) {
@@ -119,6 +137,7 @@ export function normalizePokemonEntry(pokemon) {
     spriteFront: getSpriteFront(pokemon, pokemonId),
     isShiny: Boolean(pokemon.isShiny),
     baseAttack: getPokemonBaseAttack(pokemon),
+    baseHp: getPokemonBaseHp(pokemon),
     weaponId,
     skinId,
   }

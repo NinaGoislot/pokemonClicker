@@ -1,23 +1,23 @@
 <template>
-    <div class="bg-window-gradient min-h-screen">
+    <div class="page-container">
         <main class="mx-auto max-w-6xl p-6 pt-20">
-            <BaseCard bgColor="bg-[#ffffffb8]" class="light-border mb-4 backdrop-blur-sm">
+            <BaseCard bgColor="bg-surface-glass" class="light-border mb-4 backdrop-blur-sm">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 class="text-2xl font-bold">Shop</h1>
-                        <p class="text-disabled">Achète des armes et des skins avec tes crédits.</p>
+                        <p class="text-disabled">Binvenue sur lee shop d'armes et skins ! Aujourd'hui, tout est en promo.</p>
                     </div>
-                    <p class="rounded-full bg-neutral-bg-dark px-4 py-1 text-sm font-semibold text-light">
+                    <p class="rounded-full bg-neutral-overlay-light px-4 py-1 text-sm font-semibold text-black">
                         Crédits: {{ playerStore.profile.wallet }}
                     </p>
                 </div>
 
                 <div class="mt-4 flex gap-2">
-                    <Button :bgColor="activeTab === 'weapons' ? 'bg-gradient' : 'bg-neutral-overlay-dark text-light'"
+                    <Button :bgColor="activeTab === 'weapons' ? 'bg-gradient' : 'bg-neutral-overlay-light text-black'"
                         @click="activeTab = 'weapons'">
                         Armes
                     </Button>
-                    <Button :bgColor="activeTab === 'skins' ? 'bg-gradient' : 'bg-neutral-overlay-dark text-light'"
+                    <Button :bgColor="activeTab === 'skins' ? 'bg-gradient' : 'bg-neutral-overlay-light text-black'"
                         @click="activeTab = 'skins'">
                         Skins
                     </Button>
@@ -25,12 +25,11 @@
             </BaseCard>
 
             <BaseCard v-if="activeTab === 'weapons'" bgColor="bg-neutral-bg-dark" class="dark-border gap-3">
-                <p class="text-sm text-disabled">Liste des armes achetables</p>
 
                 <div v-if="isLoadingWeapons" class="text-light">Chargement des armes...</div>
                 <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <article v-for="weapon in shopWeapons" :key="weapon.id"
-                        class="rounded-lg border border-[#6ab4ff66] bg-neutral-raised-dark p-3">
+                    <BaseCard v-for="weapon in shopWeapons" :key="weapon.id" bgColor="bg-neutral-raised-dark"
+                        class="rounded-lg border border-surface-border p-3">
                         <img :src="weapon.image" :alt="weapon.name" class="mx-auto h-24 w-full object-contain" />
                         <p class="mt-2 text-lg font-semibold text-light">{{ weapon.name }}</p>
                         <p class="text-sm text-disabled">Prix: {{ weapon.price }} crédits</p>
@@ -41,13 +40,13 @@
                         <p v-else class="mt-3 rounded-full bg-primary/20 px-3 py-1 text-center text-sm font-semibold">
                             Déjà possédée
                         </p>
-                    </article>
+                    </BaseCard>
                 </div>
             </BaseCard>
 
             <BaseCard v-else bgColor="bg-neutral-bg-dark" class="dark-border gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-sm text-disabled">4 skins aléatoires (reset toutes les heures)</p>
+                    <p class="text-sm text-disabled">Reset toutes les heures (sauf si tu veux tricher -> Bouton rafraichir)</p>
                     <div class="flex items-center gap-2">
                         <p class="text-xs text-disabled">Reset dans: {{ resetCountdown }}</p>
                         <Button bgColor="bg-neutral-overlay-dark text-light" @click="refreshSkins"
@@ -60,7 +59,7 @@
                 <div v-if="isLoadingSkins" class="text-light">Chargement des skins...</div>
                 <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <article v-for="skin in playerStore.shopSkins" :key="skin.id"
-                        class="rounded-lg border border-[#6ab4ff66] bg-neutral-raised-dark p-3">
+                        class="rounded-lg border border-surface-border bg-neutral-raised-dark p-3">
                         <img :src="skin.image" :alt="skin.name" class="mx-auto h-24 w-full object-contain" />
                         <p class="mt-2 text-sm font-semibold text-light">{{ skin.name }}</p>
                         <p class="text-xs text-disabled">Arme: {{ skin.weaponName }}</p>

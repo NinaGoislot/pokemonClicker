@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="page-container">
         <main class="p-4">
             <h1 class="mb-2 text-2xl font-bold">Collection</h1>
             <p class="mb-4 text-slate-600">Tous les pokemons captures.</p>

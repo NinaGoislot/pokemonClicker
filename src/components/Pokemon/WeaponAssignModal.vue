@@ -14,7 +14,7 @@
                         <div class="flex max-h-80 flex-col gap-2 overflow-auto pr-1">
                             <button v-for="weapon in weaponChoices" :key="weapon.id"
                                 class="flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer"
-                                :class="selectedWeaponId === weapon.id ? 'border-primary bg-primary/20' : 'border-[#6ab4ff66] bg-neutral-raised-dark'"
+                                :class="selectedWeaponId === weapon.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
                                 @click="selectWeapon(weapon.id)">
                                 <img :src="weapon.image" :alt="weapon.name"
                                     class="h-12 w-12 rounded object-contain bg-neutral-overlay-dark" />
@@ -31,7 +31,7 @@
                         <div class="grid max-h-80 grid-cols-2 gap-2 overflow-auto pr-1">
                             <button v-for="skin in skinChoices" :key="skin.id"
                                 class="rounded-lg border p-2 transition cursor-pointer"
-                                :class="selectedSkinId === skin.id ? 'border-primary bg-primary/20' : 'border-[#6ab4ff66] bg-neutral-raised-dark'"
+                                :class="selectedSkinId === skin.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
                                 @click="selectSkin(skin.id)">
                                 <img :src="skin.image" :alt="skin.name" class="mx-auto h-20 w-full object-contain" />
                                 <p class="mt-1 text-center text-xs text-light">{{ skin.name }}</p>

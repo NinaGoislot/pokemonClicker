@@ -6,6 +6,7 @@ import {
   STORAGE_KEY,
   createEmptyTeam,
   getPokemonBaseAttack,
+  getPokemonBaseHp,
   normalizePokedexFromStorage,
   normalizeTeamIds,
   normalizeWeaponInventory,
@@ -182,6 +183,7 @@ export const usePlayerStore = defineStore('player', {
           spriteFront: entry.spriteFront,
           isShiny: Boolean(entry.isShiny),
           baseAttack: getPokemonBaseAttack(entry),
+          baseHp: getPokemonBaseHp(entry),
           weaponId: entry.weaponId || null,
           skinId: entry.skinId || null,
         })),
@@ -246,11 +248,27 @@ export const usePlayerStore = defineStore('player', {
 
       const existing = this.findPokedexEntryById(entry.pokemonId)
       if (existing) {
+        // To debug when I update code but pokemon is ealready catch
+        const normalizedAttack = Number(entry.baseAttack)
+        if ((!Number.isFinite(Number(existing.baseAttack)) || Number(existing.baseAttack) <=
+          0) &&
+          Number.isFinite(normalizedAttack) && normalizedAttack > 0) {
+          existing.baseAttack = Math.round(normalizedAttack)
+        }
+
+        const normalizedHp = Number(entry.baseHp)
+        if ((!Number.isFinite(Number(existing.baseHp)) || Number(existing.baseHp) <= 0) &&
+          Number.isFinite(normalizedHp) && normalizedHp > 0) {
+          existing.baseHp = Math.round(normalizedHp)
+        }
+
+        // If shiny, replace sprite
         if (entry.isShiny) {
           existing.isShiny = true
           existing.spriteFront = entry.spriteFront || existing.spriteFront
-          this.saveToStorage()
         }
+
+        this.saveToStorage()
         return existing
       }
 

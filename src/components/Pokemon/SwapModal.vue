@@ -5,7 +5,7 @@
 
             <div class="flex flex-wrap gap-2 justify-center">
                 <button v-for="(poke, i) in team" :key="i" @click="select(i)"
-                    :class="['w-2/5 p-2 text-left rounded border transition cursor-pointer', selected === i ? 'border-green-500 bg-green-500/20' : 'border border-[#6ab4ff66] hover:border-green-500']">
+                    :class="['w-2/5 p-2 text-left rounded border transition cursor-pointer', selected === i ? 'border-green-500 bg-green-500/20' : 'border border-surface-border hover:border-green-500']">
                     <p class=" text-light">{{ poke ? poke.name : 'Vide' }}</p>
                     <p class="text-xs text-legend text-disabled">Slot {{ i + 1 }}</p>
                 </button>

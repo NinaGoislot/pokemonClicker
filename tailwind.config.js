@@ -8,7 +8,14 @@ export default {
       colors: {
         'disabled': '#747272c4',
         'primary': '#ffb347',
+        'primary-start': '#fd6f2d',
         'light': '#dadada',
+        'surface-border': '#6ab4ff66',
+        'surface-glass': '#ffffffb8',
+        'surface-glass-border': '#19273d26',
+        'enemy-border': '#93deff66',
+        'capture-border': '#f6b174',
+        'capture-ring': '#f6b17440',
       },
       backgroundColor: {
         'disabled': '#f5f6f6c4',

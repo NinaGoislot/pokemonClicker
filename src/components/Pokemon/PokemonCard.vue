@@ -1,11 +1,11 @@
 <template>
     <button @click="showModal = true" class="w-full h-full hover:scale-102 transition cursor-pointer">
-        <BaseCard class="">
-            <div class="flex justify-between">
-                <p class="text-xl">{{ pokemon.name }}</p>
+        <BaseCard class="h-full">
+            <div class="flex justify-start items-start sm:justify-between flex-col sm:flex-row gap-2">
+                <p class="text-sm lg:text-md xl:text-lg">{{ pokemon.name }}</p>
                 <div class="text-right">
-                    <p class="text-xs text-legend text-disabled">Pokedex</p>
-                    <p class="font-bold">#{{ pokemon.pokemonId }}</p>
+                    <p class="text-xs md:text-xs text-legend text-disabled">Pokedex</p>
+                    <p class="text-xs md:text-sm font-bold">#{{ pokemon.pokemonId }}</p>
                 </div>
             </div>
             <img v-if="pokemon.spriteFront" :src="pokemon.spriteFront" :alt="pokemon.name" loading="lazy"

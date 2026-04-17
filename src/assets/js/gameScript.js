@@ -4,9 +4,13 @@ import {
   ref
 } from 'vue'
 import {
-  fetchPokemonById,
   fetchPokemonShinySpriteById,
 } from '../../services/api/pokeAPI'
+import {
+  ensureLegendaryPokemonIds,
+  fetchPokemonForRarity,
+  getRarityFromKills,
+} from './gameSpawn'
 import {
   fetchWeaponsCatalog,
   getRandomEnemyLoadout,
@@ -19,8 +23,6 @@ import {
   CREDIT_REWARDS,
   DEFAULT_DIFFICULTY,
   ENEMY_ATTACK_OPTIONS,
-  LEGENDARY_POKEMON_IDS,
-  RARITY_OPTIONS,
   ROUND_CONFIG,
   WEAPON_CATEGORY_SPAWN_WEIGHTS,
 } from './options'
@@ -32,11 +34,8 @@ function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max)
-}
-
 function toDurationLabel(ms) {
+  // Format a duration in ms as mm:ss
   const safeMs = Math.max(ms, 0)
   const totalSeconds = Math.ceil(safeMs / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -45,6 +44,7 @@ function toDurationLabel(ms) {
 }
 
 function randomArenaPosition() {
+  // Random % position constrained to the arena
   const left = Math.floor(Math.random() * 75)
   const top = Math.floor(Math.random() * 55)
   return {
@@ -57,52 +57,9 @@ function randomAttackDelay() {
   return randomInt(ENEMY_ATTACK_OPTIONS.minIntervalMs, ENEMY_ATTACK_OPTIONS.maxIntervalMs)
 }
 
-function pickRandomFromList(values) {
-  if (!Array.isArray(values) || !values.length) {
-    return null
-  }
-
-  return values[randomInt(0, values.length - 1)]
-}
-
-function getRarityFromKills(killsCount) {
-  const killCount = Math.max(Number(killsCount) || 0, 0)
-
-  const shinyLegendaryChance = clamp(
-    RARITY_OPTIONS.baseShinyLegendaryChance + killCount * RARITY_OPTIONS.killBonusShinyLegendary,
-    0,
-    RARITY_OPTIONS.maxShinyLegendaryChance,
-  )
-
-  const shinyChance = clamp(
-    RARITY_OPTIONS.baseShinyChance + killCount * RARITY_OPTIONS.killBonusShiny,
-    0,
-    RARITY_OPTIONS.maxShinyChance,
-  )
-
-  const legendaryChance = clamp(
-    RARITY_OPTIONS.baseLegendaryChance + killCount * RARITY_OPTIONS.killBonusLegendary,
-    0,
-    RARITY_OPTIONS.maxLegendaryChance,
-  )
-
-  const roll = Math.random()
-  if (roll < shinyLegendaryChance) {
-    return 'shiny-legendary'
-  }
-
-  if (roll < shinyLegendaryChance + shinyChance) {
-    return 'shiny'
-  }
-
-  if (roll < shinyLegendaryChance + shinyChance + legendaryChance) {
-    return 'legendary'
-  }
-
-  return 'normal'
-}
 
 function createBattleTeamFromStore(activeTeam, difficultyConfig) {
+  // Normalize team members for battle state
   const members = []
 
   for (const pokemon of activeTeam) {
@@ -110,7 +67,8 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
       continue
     }
 
-    const baseHp = Number(pokemon.baseAttack) || 80
+    const baseAttack = Number(pokemon.baseAttack) || 80
+    const baseHp = Number(pokemon.baseHp != null ? pokemon.baseHp : pokemon.baseAttack) || 80
     const maxHp = Math.max(Math.round(baseHp * difficultyConfig.playerHpMultiplier), 40)
 
     members.push({
@@ -119,7 +77,9 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
       spriteFront: pokemon.spriteFront,
       weaponId: pokemon.weaponId,
       skinId: pokemon.skinId,
-      maxHp,
+      baseAttack,
+      baseHp,
+      maxHp: maxHp,
       currentHp: maxHp,
       isDead: false,
     })
@@ -129,7 +89,13 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
 }
 
 export function useGame() {
+  // Main game logic and state management for the battle rounds
   const playerStore = usePlayerStore()
+
+  // Preload weapon catalog so selected weapon visuals/stats are available before round start.
+  fetchWeaponsCatalog().catch((error) => {
+    console.error('Erreur preload catalogue armes', error)
+  })
 
   const selectedDifficulty = ref(DEFAULT_DIFFICULTY)
   const isLoadingRound = ref(false)
@@ -148,10 +114,11 @@ export function useGame() {
   const roundEndsAt = ref(0)
   const roundTimeLeftMs = ref(0)
 
+
   let instanceSeed = 0
-  let spawnTicker = null
-  let roundTicker = null
-  let attackTicker = null
+  let spawnTicker = null // Interval ID for enemy spawning  
+  let roundTicker = null // Interval ID for round timer and capture cleanup           
+  let attackTicker = null // Interval ID for enemy attacks  
 
   const difficultyOptions = computed(() => {
     return [ROUND_CONFIG.easy, ROUND_CONFIG.medium, ROUND_CONFIG.hard]
@@ -165,68 +132,61 @@ export function useGame() {
     return toDurationLabel(roundTimeLeftMs.value)
   })
 
-  const activeBattlePokemon = computed(() => {
-    const activeId = playerStore.activePokemonId
-    if (!activeId) {
-      return null
-    }
-
-    return battleTeam.value.find((member) => member.pokemonId === activeId) || null
-  })
-
-  const activePokemonSprite = computed(() => {
-    const member = activeBattlePokemon.value
-    if (member && member.spriteFront) {
-      return member.spriteFront
-    }
-
+  const activePokemonState = computed(() => {
+    // Compute all derived data for the active Pokemon.
+    const pkmId = playerStore.activePokemonId
+    const member = pkmId ?
+      (battleTeam.value.find((entry) => entry.pokemonId === pkmId) || null) :
+      null
+    // Keep a store fallback for UI data when round state is not ready.
     const storePokemon = playerStore.activePokemon
-    return storePokemon && storePokemon.spriteFront ? storePokemon.spriteFront : ''
-  })
 
-  const activePokemonWeaponSprite = computed(() => {
-    const member = activeBattlePokemon.value
-    if (!member || !member.weaponId) {
-      return ''
+    const sprite = member && member.spriteFront ?
+      member.spriteFront :
+      (storePokemon && storePokemon.spriteFront ? storePokemon.spriteFront : '')
+
+    const weaponId = member && member.weaponId ? member.weaponId : (storePokemon && storePokemon.weaponId)
+    const skinId = member && member.skinId ? member.skinId : (storePokemon && storePokemon.skinId)
+
+    const weaponSprite = weaponId ?
+      getWeaponImage(weaponId, skinId) :
+      ''
+
+    const attackBase = Number(member && member.baseAttack != null ? member.baseAttack :
+      (storePokemon && storePokemon.baseAttack))
+    const attack = Number.isFinite(attackBase) ? Math.max(attackBase, 1) : 100
+
+    const weaponDamage = weaponId ?
+      getWeaponMaxDamage(weaponId) :
+      50
+
+    const hpPercent = member && member.maxHp ?
+      Math.max(Math.round((member.currentHp / member.maxHp) * 100), 0) :
+      0
+
+    return {
+      member,
+      sprite,
+      weaponSprite,
+      attack,
+      weaponDamage,
+      hpPercent,
     }
-
-    return getWeaponImage(member.weaponId, member.skinId)
-  })
-
-  const activePokemonAttack = computed(() => {
-    const storePokemon = playerStore.activePokemon
-    const attack = Number(storePokemon && storePokemon.baseAttack)
-    return Number.isFinite(attack) ? Math.max(attack, 1) : 100
-  })
-
-  const activePokemonWeaponDamage = computed(() => {
-    const member = activeBattlePokemon.value
-    if (!member || !member.weaponId) {
-      return 50
-    }
-
-    return getWeaponMaxDamage(member.weaponId)
   })
 
   const clickDamage = computed(() => {
-    const multiplier = activePokemonAttack.value / 100
-    return Math.max(Math.round(activePokemonWeaponDamage.value * multiplier), 1)
-  })
-
-  const playerHpPercent = computed(() => {
-    const member = activeBattlePokemon.value
-    if (!member || !member.maxHp) {
-      return 0
-    }
-
-    return Math.max(Math.round((member.currentHp / member.maxHp) * 100), 0)
+    // Compute click damage based on active Pokemon's attack and weapon
+    const multiplier = activePokemonState.value.attack / 100 // if atk > 100 ? buff : debuff
+    return Math.max(Math.round(activePokemonState.value.weaponDamage * multiplier), 1)
   })
 
   const livingEnemiesCount = computed(() => {
+    // Count how many enemies are alive for UI and spawn logic
     return enemies.value.filter((enemy) => enemy.currentHp > 0).length
   })
 
   function clearTickers() {
+    // Stop all running interval
     if (spawnTicker) {
       clearInterval(spawnTicker)
       spawnTicker = null
@@ -244,6 +204,7 @@ export function useGame() {
   }
 
   function resetRoundState() {
+    // Reset battle state
     clearTickers()
     enemies.value = []
     battleTeam.value = []
@@ -260,9 +221,10 @@ export function useGame() {
   }
 
   function createEnemyInstance(pokemon, loadout, rarity, difficultyConfig) {
+    // Merge Pokemon stats with battle metadata
     instanceSeed += 1
 
-    const baseHp = Number(pokemon.stats && pokemon.stats.hp) || 60
+    const baseHp = Number(pokemon.stats && pokemon.stats.hp) || 80
     const maxHp = Math.max(Math.round(baseHp * difficultyConfig.enemyHpMultiplier), 80)
     const weaponDamage = getWeaponMaxDamage(loadout.weaponId)
 
@@ -285,10 +247,12 @@ export function useGame() {
   }
 
   function getLivingTeamMembers() {
+    // Filter alive allies
     return battleTeam.value.filter((member) => !member.isDead && member.currentHp > 0)
   }
 
   function switchToNextLivingPokemon() {
+    // Auto switch to the next alive ally
     const nextMember = getLivingTeamMembers()[0] || null
     if (!nextMember) {
       return false
@@ -299,6 +263,7 @@ export function useGame() {
   }
 
   function setRoundFinished(result, feedback) {
+    // End round and freeze state
     if (!isRoundRunning.value) {
       return
     }
@@ -311,12 +276,14 @@ export function useGame() {
   }
 
   function loseRound() {
+    // Apply penalty and stop the round
     const lostCredits = playerStore.loseCreditsPercent(CREDIT_PENALTIES.loseRoundPercent)
-    setRoundFinished('lost', `Round perdu. -${lostCredits} crédits.`)
+    setRoundFinished('lost', `Round perdu. -${lostCredits} crédits. Quelle honte...`)
   }
 
   function winRound() {
-    setRoundFinished('won', 'Round terminé. Bien joué.')
+    // Stop the round with a win message
+    setRoundFinished('won', 'Round terminé. Bien joué !')
   }
 
   function markEnemyAsDead(enemy) {
@@ -331,7 +298,8 @@ export function useGame() {
   }
 
   function runEnemyAttack(enemy) {
-    const activeMember = activeBattlePokemon.value
+    // Execute one enemy attack cycle
+    const activeMember = activePokemonState.value.member
     if (!activeMember || activeMember.isDead || activeMember.currentHp <= 0) {
       return
     }
@@ -346,7 +314,7 @@ export function useGame() {
       playerHitFlash.value = false
     }, 220)
 
-    const attackDamage = Math.max(Math.round(enemy.weaponDamage * 0.34), 10)
+    const attackDamage = Math.max(Math.round(enemy.weaponDamage * 0.35), 10)
     activeMember.currentHp = Math.max(activeMember.currentHp - attackDamage, 0)
 
     if (activeMember.currentHp <= 0) {
@@ -359,11 +327,12 @@ export function useGame() {
   }
 
   function updateEnemyAttackLoop() {
+    // Tick for all enemies that can attack
     if (!isRoundRunning.value) {
       return
     }
 
-    const activeMember = activeBattlePokemon.value
+    const activeMember = activePokemonState.value.member
     if (!activeMember || activeMember.isDead || activeMember.currentHp <= 0) {
       const switched = switchToNextLivingPokemon()
       if (!switched) {
@@ -388,6 +357,7 @@ export function useGame() {
   }
 
   function cleanupExpiredCaptures() {
+    // Remove dead enemies whose capture window ended
     const now = Date.now()
     enemies.value = enemies.value.filter((enemy) => {
       if (enemy.currentHp > 0) {
@@ -398,35 +368,9 @@ export function useGame() {
     })
   }
 
-  function getNormalPokemonId() {
-    const legendarySet = new Set(LEGENDARY_POKEMON_IDS)
-    let attempts = 0
-
-    while (attempts < 25) {
-      const candidate = randomInt(1, 898)
-      if (!legendarySet.has(candidate)) {
-        return candidate
-      }
-      attempts += 1
-    }
-
-    return randomInt(1, 898)
-  }
-
-  async function fetchPokemonForRarity(rarity) {
-    const isLegendary = rarity === 'legendary' || rarity === 'shiny-legendary'
-    const isShiny = rarity === 'shiny' || rarity === 'shiny-legendary'
-
-    const pokemonId = isLegendary ?
-      (pickRandomFromList(LEGENDARY_POKEMON_IDS) || randomInt(1, 898)) :
-      getNormalPokemonId()
-
-    return fetchPokemonById(pokemonId, {
-      isShiny
-    })
-  }
 
   async function spawnOneEnemy(difficultyConfig) {
+    // Spawn a single enemy
     const rarity = getRarityFromKills(killsCount.value)
     const pokemon = await fetchPokemonForRarity(rarity)
     if (!pokemon || !pokemon.sprites || !pokemon.sprites.front) {
@@ -442,6 +386,7 @@ export function useGame() {
   }
 
   async function spawnEnemiesIfNeeded(forceSpawn) {
+    // Decide how many enemies to add and spawn them
     if (!isRoundRunning.value) {
       return
     }
@@ -449,7 +394,12 @@ export function useGame() {
     cleanupExpiredCaptures()
 
     const difficultyConfig = currentDifficulty.value
-    const aliveCount = enemies.value.filter((enemy) => enemy.currentHp > 0).length
+    let aliveCount = 0
+    for (const enemy of enemies.value) {
+      if (enemy.currentHp > 0) {
+        aliveCount += 1
+      }
+    }
 
     if (aliveCount >= difficultyConfig.maxEnemies) {
       return
@@ -481,6 +431,7 @@ export function useGame() {
   }
 
   function setupRoundTickers() {
+    // Start main round timers (spawn, round clock, attacks)
     const difficultyConfig = currentDifficulty.value
 
     spawnTicker = setInterval(() => {
@@ -510,6 +461,7 @@ export function useGame() {
   }
 
   async function startRound() {
+    // Validate prerequisites, initialize round, and start timers.
     if (isLoadingRound.value || isRoundRunning.value) {
       return
     }
@@ -525,7 +477,8 @@ export function useGame() {
     })
 
     if (!teamHasLoadout) {
-      roundFeedback.value = 'Tous les pokémons de l\'équipe doivent avoir une arme et un skin.'
+      roundFeedback.value =
+        'Tous les pokémons de l\'équipe doivent avoir une arme et un skin pour lancer !'
       return
     }
 
@@ -534,12 +487,14 @@ export function useGame() {
 
     try {
       await fetchWeaponsCatalog()
+      await ensureLegendaryPokemonIds()
 
       const difficultyConfig = currentDifficulty.value
       battleTeam.value = createBattleTeamFromStore(playerStore.activeTeam, difficultyConfig)
 
       if (!battleTeam.value.length) {
-        roundFeedback.value = 'Aucun pokémon vivant pour lancer le round.'
+        roundFeedback.value =
+          'Aucun pokémon vivant pour lancer le round. Tu sembles être un piètre dresseur...'
         return
       }
 
@@ -562,6 +517,7 @@ export function useGame() {
   }
 
   function setPlayerAttackPulse() {
+    // Brief recoil animation on player attacks
     playerRecoil.value = true
     setTimeout(() => {
       playerRecoil.value = false
@@ -569,6 +525,7 @@ export function useGame() {
   }
 
   function damageEnemy(enemyInstanceId) {
+    // Apply click damage
     if (!isRoundRunning.value) {
       return
     }
@@ -592,6 +549,7 @@ export function useGame() {
   }
 
   async function captureEnemy(enemyInstanceId) {
+    // Capture a dead enemy
     const index = enemies.value.findIndex((entry) => entry.instanceId === enemyInstanceId)
     if (index < 0) {
       return
@@ -636,6 +594,7 @@ export function useGame() {
   }
 
   function enemyHpPercent(enemy) {
+    // Compute HP percent for UI
     if (!enemy.maxHp) {
       return 0
     }
@@ -644,6 +603,7 @@ export function useGame() {
   }
 
   function enemyCaptureTimeLeftMs(enemy) {
+    // Remaining capture time for UI
     if (enemy.currentHp > 0 || !enemy.capturableUntil) {
       return 0
     }
@@ -652,6 +612,7 @@ export function useGame() {
   }
 
   function setDifficulty(level) {
+    // Change difficulty, between rounds only
     if (isRoundRunning.value) {
       return
     }
@@ -681,10 +642,7 @@ export function useGame() {
     setDifficulty,
     roundTimerLabel,
     clickDamage,
-    activePokemonSprite,
-    activePokemonWeaponSprite,
-    activeBattlePokemon,
-    playerHpPercent,
+    activePokemonState,
     playerHitFlash,
     playerRecoil,
     livingEnemiesCount,
