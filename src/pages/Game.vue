@@ -93,46 +93,10 @@
                             Aucun ennemi actif.
                         </div>
 
-                        <BaseCard v-for="enemy in enemies" :key="enemy.instanceId" bgColor="bg-neutral-overlay-dark"
-                            class="absolute w-40 border border-dark-border p-2 text-light" :class="[
-                                enemy.currentHp <= 0 ? 'border-[#f6b174] shadow-[0_0_0_2px_rgba(246,177,116,0.25)]' : '',
-                                enemy.isRecoiling ? 'animate-enemy-recoil' : '',
-                                enemy.isHit ? 'animate-enemy-hit' : '',
-                            ]" :style="enemy.position">
-
-                            <button
-                                class="relative rounded-xl bg-neutral-raised-dark enabled:cursor-crosshair disabled:cursor-default"
-                                :disabled="enemy.currentHp <= 0 || !isRoundRunning"
-                                @click="damageEnemy(enemy.instanceId)">
-                                <img :src="enemy.sprites.front" :alt="enemy.displayName" loading="lazy"
-                                    class="mx-auto aspect-square w-full" />
-                                <img v-if="enemy.weaponImage" :src="enemy.weaponImage"
-                                    :alt="`Arme de ${enemy.displayName}`"
-                                    class="pointer-events-none absolute bottom-0 right-0 transform translate-y-2 translate-x-6 h-1/2 w-full object-contain" />
-                            </button>
-
-                            <div class="mt-1 flex flex-col gap-1">
-                                <p class="font-bold">{{ enemy.displayName }}</p>
-                                <p class="text-[11px] uppercase tracking-[0.08em] text-disabled">{{ enemy.rarity }}</p>
-
-                                <div v-if="enemy.currentHp > 0" class="flex flex-col gap-0.5">
-                                    <p class="text-xs text-light">{{ Math.max(enemy.currentHp, 0) }} / {{ enemy.maxHp }}
-                                        PV</p>
-                                    <div class="mt-1 h-2 overflow-hidden rounded-full bg-neutral-raised-dark">
-                                        <div class="h-full bg-gradient transition-[width] duration-150 ease-linear"
-                                            :style="{ width: `${enemyHpPercent(enemy)}%` }"></div>
-                                    </div>
-                                </div>
-
-                                <div v-else class="flex flex-col items-center gap-1">
-                                    <ActionButton @click="captureEnemy(enemy.instanceId)" label="Capturer"
-                                        class="rounded-full px-3 py-0.5 text-black mx-auto" />
-                                    <p class="text-[11px] text-disabled">
-                                        {{ Math.ceil(enemyCaptureTimeLeftMs(enemy) / 1000) }}s restantes
-                                    </p>
-                                </div>
-                            </div>
-                        </BaseCard>
+                        <SpawnPokemon v-for="enemy in enemies" :key="enemy.instanceId" :enemy="enemy"
+                            :isRoundRunning="isRoundRunning" :enemyHpPercent="enemyHpPercent(enemy)"
+                            :captureTimeLeftSeconds="Math.ceil(enemyCaptureTimeLeftMs(enemy) / 1000)"
+                            @damage="damageEnemy" @capture="captureEnemy" />
                     </div>
                 </BaseCard>
             </section>
@@ -145,6 +109,7 @@ import BaseCard from '@/components/UI/BaseCard.vue'
 import ActionButton from '@/components/Buttons/actionButton.vue'
 import FilterButton from '@/components/Buttons/filterButton.vue'
 import ButtonsGallery from '@/components/Gallery/buttonsGallery.vue'
+import SpawnPokemon from '@/components/Pokemon/spawnPokemon.vue'
 import { useGame } from '@/assets/js/gameScript.js'
 
 const {
@@ -171,6 +136,7 @@ const {
 } = useGame()
 </script>
 
+<!-- animation -->
 <style scoped>
 @keyframes enemy-recoil {
     0% {
@@ -205,14 +171,6 @@ const {
         transform: translateX(0);
         opacity: 1;
     }
-}
-
-.animate-enemy-recoil {
-    animation: enemy-recoil 0.18s ease;
-}
-
-.animate-enemy-hit {
-    animation: hit-shake 0.16s ease;
 }
 
 .animate-player-hit {

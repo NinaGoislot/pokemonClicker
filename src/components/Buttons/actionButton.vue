@@ -1,6 +1,6 @@
 <template>
     <Button :bgColor="bgColor" :disabled="disabled" @click="onClick" class="px-2 sm:px-5 py-1 sm:py-2 font-bold">
-        {{ label }}
+       <slot>{{ label }}</slot>
     </Button>
 </template>
 

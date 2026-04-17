@@ -1,19 +1,21 @@
 <template>
     <Transition name="modal">
-        <div v-if="isOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+        <div v-if="isOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2 sm:p-4"
             @click.self="close">
-            <BaseCard bgColor="bg-neutral-bg-dark" class="dark-border w-1/2">
+            <BaseCard bgColor="bg-neutral-bg-dark"
+                class="dark-border w-full max-h-[92vh] overflow-y-auto sm:max-w-3xl lg:max-w-4xl">
                 <div class="flex justify-between mb-4">
                     <div>
                         <p class="text-xs text-legend text-light">Pokédex #{{ pokemon.pokemonId }}</p>
-                        <h2 class="text-2xl font-bold text-light">{{ pokemon.name }}</h2>
+                        <h2 class="text-xl sm:text-2xl font-bold text-light">{{ pokemon.name }}</h2>
                     </div>
                     <button @click="close" class="text-light hover:text-red-400 text-2xl cursor-pointer">×</button>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="bg-neutral-overlay-dark rounded p-4 flex items-center justify-center">
-                        <img v-if="pokemon.spriteFront" :src="pokemon.spriteFront" :alt="pokemon.name" class="w-full" />
+                        <img v-if="pokemon.spriteFront" :src="pokemon.spriteFront" :alt="pokemon.name"
+                            class="w-full max-w-xs" />
                     </div>
 
                     <div class="flex flex-col justify-between">
@@ -31,16 +33,16 @@
 
                             <div class="flex flex-col gap-4">
                                 <p class="text-lg text-light">Stats</p>
-                                <div class="flex flex-col gap-1 text-md">
+                                <div class="flex flex-col gap-1 text-sm sm:text-base">
                                     <div v-for="(val, stat) in fullData.stats" :key="stat"
                                         class="flex justify-between items-center">
-                                        <span class="w-1/10 text-disabled">{{ statName(stat) }}</span>
+                                        <span class="min-w-10 text-disabled">{{ statName(stat) }}</span>
                                         <div class="flex-1 h-1.5 bg-white/20 rounded mx-1">
                                             <div class="h-full bg-gradient rounded"
-                                                :style="{ width: (val / 150) * 100 + '%' }">
+                                                :style="{ width: (val / STATS_BAR_MAX_VALUE) * 100 + '%' }">
                                             </div>
                                         </div>
-                                        <span class="w-1/12 text-right text-light">{{ val }}</span>
+                                        <span class="min-w-8 text-right text-light">{{ val }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -65,7 +67,7 @@
 
                 <p v-if="teamError" class="text-sm text-red-400">{{ teamError }}</p>
 
-                <div class="flex gap-2 justify-end">
+                <div class="flex flex-col sm:flex-row gap-2 sm:justify-end">
                     <ActionButton bgColor="bg-gray-700" @click="close" label="Fermer" />
                     <ActionButton :bgColor="isInTeam ? 'bg-red-600' : 'bg-gradient'" @click="addToTeam"
                         :disabled="loading"
@@ -107,6 +109,7 @@ const showSwap = ref(false)
 const showWeaponModal = ref(false)
 const isInTeam = ref(false)
 const teamError = ref('')
+const STATS_BAR_MAX_VALUE = 230
 
 const currentPokemonEntry = computed(() => {
     return playerStore.findPokedexEntryById(props.pokemon.pokemonId)

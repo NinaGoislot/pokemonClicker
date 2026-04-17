@@ -15,17 +15,25 @@
             </div>
         </section>
 
-        <section v-else class=" w-full sm:w-2/3 md:w-1/2 xl:w-1/4 rounded-lg border p-4 bg-neutral-raised-light">
-            <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Bienvenue</p>
-            <h2 class="text-xl font-extrabold">{{ playerStore.profile.name }}</h2>
-            <p class="mt-2">Credits: {{ playerStore.profile.wallet }}</p>
-            <p class="mt-2 text-sm text-slate-600">Taille pokedex: {{ playerStore.pokedex.length }}</p>
+        <section v-else class=" w-full sm:w-2/3 md:w-1/2 xl:w-1/4 flex flex-col gap-4">
+            <BaseCard class="light-border">
+                <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Bienvenue</p>
+                <h2 class="text-xl font-extrabold">{{ playerStore.profile.name }}</h2>
+                <p class="mt-2">Credits: {{ playerStore.profile.wallet }}</p>
+                <p class="mt-2 text-sm text-slate-600">Taille pokedex: {{ playerStore.pokedex.length }}</p>
+            </BaseCard>
+            <ActionButton bgColor="bg-neutral-raised-dark text-white" class="mx-auto" label="Jouer">
+                <router-link to="/game">
+                    Jouer
+                </router-link>
+            </ActionButton>
         </section>
     </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import BaseCard from '../components/UI/BaseCard.vue'
 import ActionButton from '../components/Buttons/actionButton.vue'
 import { usePlayerStore } from '../store/playerStore'
 

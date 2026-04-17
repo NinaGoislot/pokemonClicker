@@ -1,25 +1,26 @@
 <template>
     <Transition name="modal">
-        <div v-if="isOpen" class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
+        <div v-if="isOpen" class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-2 sm:p-4"
             @click.self="onCancel">
-            <BaseCard bgColor="bg-neutral-bg-dark" class="dark-border w-3/4 max-w-4xl gap-4">
+            <BaseCard bgColor="bg-neutral-bg-dark"
+                class="dark-border w-full max-h-[92vh] overflow-y-auto sm:max-w-3xl lg:max-w-4xl gap-4">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-xl font-bold text-light">Associer arme et skin</h3>
+                    <h3 class="text-lg sm:text-xl font-bold text-light">Associer arme et skin</h3>
                     <button class="text-2xl text-light hover:text-primary cursor-pointer" @click="onCancel">×</button>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div class="rounded-lg bg-neutral-overlay-dark p-3">
                         <p class="mb-2 text-xs text-legend text-light">Armes possédées</p>
-                        <div class="flex max-h-80 flex-col gap-2 overflow-auto pr-1">
+                        <div class="flex max-h-64 sm:max-h-80 flex-col gap-2 overflow-auto pr-1">
                             <button v-for="weapon in weaponChoices" :key="weapon.id"
                                 class="flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer"
                                 :class="selectedWeaponId === weapon.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
                                 @click="selectWeapon(weapon.id)">
                                 <img :src="weapon.image" :alt="weapon.name"
-                                    class="h-12 w-12 rounded object-contain bg-neutral-overlay-dark" />
+                                    class="h-10 w-10 sm:h-12 sm:w-12 rounded object-contain bg-neutral-overlay-dark" />
                                 <div>
-                                    <p class="font-semibold text-light">{{ weapon.name }}</p>
+                                    <p class="font-semibold text-sm sm:text-base text-light">{{ weapon.name }}</p>
                                     <p class="text-xs text-disabled">{{ weapon.skinCount }} skins dispo</p>
                                 </div>
                             </button>
@@ -28,19 +29,20 @@
 
                     <div class="rounded-lg bg-neutral-overlay-dark p-3">
                         <p class="mb-2 text-xs text-legend text-light">Skins disponibles</p>
-                        <div class="grid max-h-80 grid-cols-2 gap-2 overflow-auto pr-1">
+                        <div class="grid max-h-64 sm:max-h-80 grid-cols-2 gap-2 overflow-auto pr-1">
                             <button v-for="skin in skinChoices" :key="skin.id"
                                 class="rounded-lg border p-2 transition cursor-pointer"
                                 :class="selectedSkinId === skin.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
                                 @click="selectSkin(skin.id)">
-                                <img :src="skin.image" :alt="skin.name" class="mx-auto h-20 w-full object-contain" />
+                                <img :src="skin.image" :alt="skin.name"
+                                    class="mx-auto h-14 sm:h-20 w-full object-contain" />
                                 <p class="mt-1 text-center text-xs text-light">{{ skin.name }}</p>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-2">
+                <div class="flex flex-col sm:flex-row sm:justify-end gap-2">
                     <ActionButton bgColor="bg-neutral-overlay-dark text-light" @click="onCancel" label="Annuler" />
                     <ActionButton :disabled="!selectedWeaponId || !selectedSkinId" @click="onConfirm"
                         label="Confirmer" />
