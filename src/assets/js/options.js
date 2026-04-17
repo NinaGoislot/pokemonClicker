@@ -29,8 +29,8 @@ export const ROUND_CONFIG = {
     maxEnemies: 20,
     spawnIntervalMs: 5000,
     enemyCategoryIds: [1, 2, 3, 4],
-    enemyHpMultiplier: 20.,
-    playerHpMultiplier: 2.5,
+    enemyHpMultiplier: 15.,
+    playerHpMultiplier: 5.5,
   },
 }
 
@@ -55,9 +55,9 @@ export const CAPTURE_OPTIONS = {
 }
 
 export const RARITY_OPTIONS = {
-  baseLegendaryChance: 0.002, // 0.2%
-  baseShinyChance: 0.005, // 0.5%
-  baseShinyLegendaryChance: 0.000005, // 0.005%
+  baseLegendaryChance: 1/25000, // 0,004%
+  baseShinyChance: 1/8000, // 0,0125%
+  baseShinyLegendaryChance: 1/100000, // 0,001%
   killBonusLegendary: 0.00015, // +0.015% per kill
   killBonusShiny: 0.00012, // +0.012% per kill
   killBonusShinyLegendary: 0.000015, // +0.0015% per kill

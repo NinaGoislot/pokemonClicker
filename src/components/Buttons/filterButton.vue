@@ -1,7 +1,7 @@
 <template>
-  <Button :bgColor="resolvedBgColor" :disabled="disabled" @click="onClick" class="px-2 sm:px-3 py-0.5 ">
-    <slot>{{ label }}</slot>
-  </Button>
+    <Button :bgColor="resolvedBgColor" :disabled="disabled" @click="emit('click', $event)" class="px-2 py-0.5 sm:px-3">
+        <slot>{{ label }}</slot>
+    </Button>
 </template>
 
 <script setup>
@@ -34,12 +34,4 @@ const props = defineProps({
 const emit = defineEmits(['click'])
 
 const resolvedBgColor = computed(() => props.isActive ? props.activeBgColor : props.inactiveBgColor)
-
-function onClick(event) {
-  if (props.disabled) {
-    return
-  }
-
-  emit('click', event)
-}
 </script>

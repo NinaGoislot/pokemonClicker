@@ -1,5 +1,5 @@
 const API_BASE_URL = 'https://pokeapi.co/api/v2'
-export const MAX_POKEMON_ID = 898
+export const MAX_POKEMON_ID = 1025
 
 const statToGameKey = {
   hp: 'hp',

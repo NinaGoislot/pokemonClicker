@@ -9,6 +9,9 @@ import Shop from '../pages/Shop.vue'
 import {
   usePlayerStore
 } from '../store/playerStore'
+import {
+  executeCommandFromRoute
+} from './commandHandlers'
 
 const routes = [{
     path: '/',
@@ -30,6 +33,10 @@ const routes = [{
     name: 'Shop',
     component: Shop
   },
+  {
+    path: '/command/:rawCommand/:arg?',
+    name: 'Command'
+  },
 ]
 
 const router = createRouter({
@@ -37,9 +44,17 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const playerStore = usePlayerStore()
   playerStore.loadFromStorage()
+
+  const wasCommandRouteHandled = await executeCommandFromRoute(to, playerStore)
+  if (wasCommandRouteHandled) {
+
+    return {
+      name: 'Home'
+    }
+  }
 
   if (!playerStore.hasPlayer && to.name !== 'Home') {
     return {

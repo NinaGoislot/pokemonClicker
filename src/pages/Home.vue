@@ -58,7 +58,7 @@ async function createPlayer() {
 
     try {
         await playerStore.createPlayerWithStarter(name)
-    } catch (e) {
+    } catch {
         error.value = 'Impossible de creer le joueur pour le moment.'
     } finally {
         isCreating.value = false

@@ -1,11 +1,5 @@
-import {
-  computed,
-  onUnmounted,
-  ref
-} from 'vue'
-import {
-  fetchPokemonShinySpriteById,
-} from '../../services/api/pokeAPI'
+import { computed, onUnmounted, ref } from 'vue'
+import { fetchPokemonShinySpriteById } from '../../services/api/pokeAPI'
 import {
   ensureLegendaryPokemonIds,
   fetchPokemonForRarity,
@@ -26,9 +20,7 @@ import {
   ROUND_CONFIG,
   WEAPON_CATEGORY_SPAWN_WEIGHTS,
 } from './options'
-import {
-  usePlayerStore
-} from '../../store/playerStore'
+import { usePlayerStore } from '../../store/playerStore'
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
@@ -89,7 +81,6 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
 }
 
 export function useGame() {
-  // Main game logic and state management for the battle rounds
   const playerStore = usePlayerStore()
 
   // Preload weapon catalog so selected weapon visuals/stats are available before round start
@@ -133,12 +124,12 @@ export function useGame() {
   })
 
   const activePokemonState = computed(() => {
-    // Compute all derived data for the active Pokemon.
+    // Compute all derived data for the active Pokemon
     const pkmId = playerStore.activePokemonId
     const member = pkmId ?
       (battleTeam.value.find((entry) => entry.pokemonId === pkmId) || null) :
       null
-    // Keep a store fallback for UI data when round state is not ready.
+    // During transition between rounds we fallback to store data to keep UI stable
     const storePokemon = playerStore.activePokemon
 
     const sprite = member && member.spriteFront ?
@@ -150,8 +141,7 @@ export function useGame() {
     const skinId = member && member.skinId ? member.skinId : (storePokemon && storePokemon
       .skinId)
 
-    const weaponSprite = weaponId ?
-      getWeaponImage(weaponId, skinId) : '';
+    const weaponSprite = weaponId ? getWeaponImage(weaponId, skinId) : ''
 
     const attackBase = Number(member && member.baseAttack != null ? member.baseAttack :
       (storePokemon && storePokemon.baseAttack))
@@ -406,6 +396,7 @@ export function useGame() {
       return
     }
 
+    // Determine how many enemies to spawn based on current count, difficulty config and randomness
     let toSpawn = 0
     if (aliveCount < difficultyConfig.minEnemies) {
       toSpawn = difficultyConfig.minEnemies - aliveCount
@@ -462,7 +453,7 @@ export function useGame() {
   }
 
   async function startRound() {
-    // Validate prerequisites, initialize round, and start timers.
+    // Validate prerequisites, initialize round, and start timers
     if (isLoadingRound.value || isRoundRunning.value) {
       return
     }
@@ -518,7 +509,6 @@ export function useGame() {
   }
 
   function setPlayerAttackPulse() {
-    // Brief recoil animation on player attacks
     playerRecoil.value = true
     setTimeout(() => {
       playerRecoil.value = false
@@ -526,7 +516,6 @@ export function useGame() {
   }
 
   function damageEnemy(enemyInstanceId) {
-    // Apply click damage
     if (!isRoundRunning.value) {
       return
     }
@@ -550,7 +539,6 @@ export function useGame() {
   }
 
   async function captureEnemy(enemyInstanceId) {
-    // Capture a dead enemy
     const index = enemies.value.findIndex((entry) => entry.instanceId === enemyInstanceId)
     if (index < 0) {
       return
@@ -597,7 +585,6 @@ export function useGame() {
   }
 
   function enemyHpPercent(enemy) {
-    // Compute HP percent for UI
     if (!enemy.maxHp) {
       return 0
     }
@@ -606,7 +593,6 @@ export function useGame() {
   }
 
   function enemyCaptureTimeLeftMs(enemy) {
-    // Remaining capture time for UI
     if (enemy.currentHp > 0 || !enemy.capturableUntil) {
       return 0
     }
@@ -615,7 +601,6 @@ export function useGame() {
   }
 
   function setDifficulty(level) {
-    // Change difficulty, between rounds only
     if (isRoundRunning.value) {
       return
     }

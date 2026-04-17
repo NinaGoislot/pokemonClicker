@@ -20,7 +20,7 @@ import {
   getShopSkinRefreshMs,
 } from '@/services/api/valorantAPI'
 import {
-  getPokemonByName,
+  getPokemonByName
 } from '@/services/api/pokeAPI'
 
 function cloneWeaponInventoryEntry(weapon) {
@@ -72,25 +72,13 @@ export const usePlayerStore = defineStore('player', {
     },
 
     hasPokemonLoadout(pokemonEntry) {
-      return Boolean(
-        pokemonEntry &&
-        pokemonEntry.weaponId &&
-        pokemonEntry.skinId,
-      )
+      return Boolean(pokemonEntry && pokemonEntry.weaponId && pokemonEntry.skinId)
     },
 
     getWeaponAssignedCount(weaponId, excludedPokemonId = null) {
-      return this.pokedex.filter((pokemon) => {
-        if (pokemon.weaponId !== weaponId) {
-          return false
-        }
-
-        if (excludedPokemonId !== null && pokemon.pokemonId === excludedPokemonId) {
-          return false
-        }
-
-        return true
-      }).length
+      return this.pokedex.filter(
+        (pokemon) => pokemon.weaponId === weaponId && pokemon.pokemonId !== excludedPokemonId,
+      ).length
     },
 
     getWeaponAvailableUnits(weaponId, excludedPokemonId = null) {
@@ -166,6 +154,7 @@ export const usePlayerStore = defineStore('player', {
         this.pokedex = normalizePokedexFromStorage(parsed && parsed.pokedex)
         this.activeTeamIds = normalizeTeamIds(parsed && parsed.activeTeamIds)
 
+        // Active pokemon must always stay synced with a slot from activeTeamIds
         const parsedActivePokemonId = Number((parsed && parsed.activePokemonId) || 0)
         if (Number.isFinite(parsedActivePokemonId) && this.activeTeamIds.includes(
             parsedActivePokemonId)) {
@@ -174,6 +163,7 @@ export const usePlayerStore = defineStore('player', {
           this.activePokemonId = this.activeTeamIds.find((id) => id !== null) || null
         }
 
+        // We normalize old saves then force default skin presence for backward compatibility.
         this.weaponInventory = normalizeWeaponInventory(parsed && parsed.weaponInventory)
         for (const ownedWeapon of this.weaponInventory) {
           this.ensureDefaultSkinInOwnedWeapon(ownedWeapon.id)
@@ -330,6 +320,7 @@ export const usePlayerStore = defineStore('player', {
         return false
       }
 
+      // Exclude current pokemon so reassignment doesn't consume an extra weapon unit.
       const availableUnits = this.getWeaponAvailableUnits(weaponId, entry.pokemonId)
       if (availableUnits <= 0) {
         return false
@@ -528,6 +519,7 @@ export const usePlayerStore = defineStore('player', {
         }
       }
 
+      // Team full: keep selection in memory until user confirms swap target slot.
       this._pendingPokemon = entry
       return {
         action: 'swap'

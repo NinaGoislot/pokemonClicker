@@ -2,6 +2,9 @@
     <div class="page-container">
         <div class="p-4 flex flex-col gap-4">
             <h1 class="text-2xl font-bold">Pokédex de {{ playerStore.profile.name }}</h1>
+            <p class="text-sm text-disabled">
+                Pokemons : {{ playerStore.pokedex.length }} sur {{ MAX_POKEMON_ID }}
+            </p>
 
             <BaseCard class="light-border" bgColor="bg-neutral-raised-light gap-4">
                 <div class="">
@@ -57,6 +60,7 @@ import BaseCard from '../components/UI/BaseCard.vue'
 import FilterButton from '../components/Buttons/filterButton.vue'
 import ButtonsGallery from '../components/Gallery/buttonsGallery.vue'
 import Pokedex from '../components/Gallery/pokedexGallery.vue'
+import { MAX_POKEMON_ID } from '../services/api/pokeAPI'
 
 const playerStore = usePlayerStore()
 
