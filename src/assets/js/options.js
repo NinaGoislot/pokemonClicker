@@ -61,9 +61,9 @@ export const RARITY_OPTIONS = {
   killBonusLegendary: 0.00015, // +0.015% per kill
   killBonusShiny: 0.00012, // +0.012% per kill
   killBonusShinyLegendary: 0.000015, // +0.0015% per kill
-  maxLegendaryChance: 0.05, // 5%
-  maxShinyChance: 0.2, // 20%
-  maxShinyLegendaryChance: 0.01, // 1%
+  maxLegendaryChance: 0.005, // 0.%
+  maxShinyChance: 0.05, // 5%
+  maxShinyLegendaryChance: 0.0005, // 0,05%
 }
 
 export const WEAPON_CATEGORY_SPAWN_WEIGHTS = {

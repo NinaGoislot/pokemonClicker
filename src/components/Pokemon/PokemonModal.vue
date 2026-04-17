@@ -81,7 +81,7 @@
                 :currentWeaponId="currentPokemonEntry ? currentPokemonEntry.weaponId : ''"
                 :currentSkinId="currentPokemonEntry ? currentPokemonEntry.skinId : ''"
                 :errorMessage="weaponAssignError" @clearError="weaponAssignError = ''" @cancel="closeWeaponModal"
-                @confirm="confirmWeaponAssociation" />
+                @confirm="confirmWeaponAssociation" @remove="removeWeaponAssociation" />
         </div>
     </Transition>
 </template>
@@ -183,6 +183,17 @@ const confirmWeaponAssociation = ({ weaponId, skinId }) => {
     const done = playerStore.setPokemonWeaponLoadout(props.pokemon.pokemonId, weaponId, skinId)
     if (!done) {
         weaponAssignError.value = 'Association impossible. Tu n\'as pas assez d\'exemplaire de cette arme ! Direction le shop mon coco.'
+        return
+    }
+
+    weaponAssignError.value = ''
+    showWeaponModal.value = false
+}
+
+const removeWeaponAssociation = () => {
+    const done = playerStore.clearPokemonWeaponLoadout(props.pokemon.pokemonId)
+    if (!done) {
+        weaponAssignError.value = 'Retrait impossible pour ce pokémon.'
         return
     }
 

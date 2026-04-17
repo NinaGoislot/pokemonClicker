@@ -332,6 +332,18 @@ export const usePlayerStore = defineStore('player', {
       return true
     },
 
+    clearPokemonWeaponLoadout(pokemonId) {
+      const entry = this.findPokedexEntryById(pokemonId)
+      if (!entry) {
+        return false
+      }
+
+      entry.weaponId = null
+      entry.skinId = null
+      this.saveToStorage()
+      return true
+    },
+
     buyWeapon(weapon) {
       if (!weapon || !weapon.id) {
         return {

@@ -46,6 +46,8 @@
                 </div>
 
                 <div class="flex flex-col sm:flex-row sm:justify-end gap-2">
+                    <ActionButton v-if="hasCurrentLoadout" bgColor="bg-red-600 text-white" @click="onRemove"
+                        label="Retirer l'arme" />
                     <ActionButton bgColor="bg-neutral-overlay-dark text-light" @click="onCancel" label="Annuler" />
                     <ActionButton :disabled="!selectedWeaponId || !selectedSkinId" @click="onConfirm"
                         label="Confirmer" />
@@ -82,11 +84,15 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(['cancel', 'confirm', 'clearError'])
+const emit = defineEmits(['cancel', 'confirm', 'clearError', 'remove'])
 const playerStore = usePlayerStore()
 
 const selectedWeaponId = ref('')
 const selectedSkinId = ref('')
+
+const hasCurrentLoadout = computed(() => {
+    return Boolean(props.currentWeaponId && props.currentSkinId)
+})
 
 const weaponChoices = computed(() => {
     const inventory = Array.isArray(props.inventory) ? props.inventory : []
@@ -166,6 +172,11 @@ function onConfirm() {
         weaponId: selectedWeaponId.value,
         skinId: selectedSkinId.value,
     })
+}
+
+function onRemove() {
+    emit('clearError')
+    emit('remove')
 }
 
 async function initializeSelection() {
