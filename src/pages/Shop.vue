@@ -1,27 +1,26 @@
 <template>
-    <div class="page-container">
-        <main class="mx-auto max-w-6xl p-6 pt-20">
-            <BaseCard bgColor="bg-surface-glass" class="light-border mb-4 backdrop-blur-sm">
+    <div class="page-container ">
+        <div class="mx-auto max-w-6xl p-6 flex flex-col gap-6">
+            <BaseCard bgColor="bg-surface-glass" class="light-border backdrop-blur-sm gap-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 class="text-2xl font-bold">Shop</h1>
-                        <p class="text-disabled">Binvenue sur lee shop d'armes et skins ! Aujourd'hui, tout est en promo.</p>
+                        <p class="text-disabled">Binvenue sur lee shop d'armes et skins ! Aujourd'hui, tout est en
+                            promo.</p>
                     </div>
                     <p class="rounded-full bg-neutral-overlay-light px-4 py-1 text-sm font-semibold text-black">
                         Crédits: {{ playerStore.profile.wallet }}
                     </p>
                 </div>
 
-                <div class="mt-4 flex gap-2">
-                    <Button :bgColor="activeTab === 'weapons' ? 'bg-gradient' : 'bg-neutral-overlay-light text-black'"
-                        @click="activeTab = 'weapons'">
+                <ButtonsGallery :withTopSpacing="false">
+                    <FilterButton :isActive="activeTab === 'weapons'" @click="activeTab = 'weapons'">
                         Armes
-                    </Button>
-                    <Button :bgColor="activeTab === 'skins' ? 'bg-gradient' : 'bg-neutral-overlay-light text-black'"
-                        @click="activeTab = 'skins'">
+                    </FilterButton>
+                    <FilterButton :isActive="activeTab === 'skins'" @click="activeTab = 'skins'">
                         Skins
-                    </Button>
-                </div>
+                    </FilterButton>
+                </ButtonsGallery>
             </BaseCard>
 
             <BaseCard v-if="activeTab === 'weapons'" bgColor="bg-neutral-bg-dark" class="dark-border gap-3">
@@ -34,9 +33,8 @@
                         <p class="mt-2 text-lg font-semibold text-light">{{ weapon.name }}</p>
                         <p class="text-sm text-disabled">Prix: {{ weapon.price }} crédits</p>
 
-                        <Button v-if="!isWeaponOwned(weapon.id)" class="mt-3 w-full" @click="buyWeapon(weapon)">
-                            Acheter
-                        </Button>
+                        <ActionButton v-if="!isWeaponOwned(weapon.id)" class="mt-3 w-full" label="Acheter"
+                            @click="buyWeapon(weapon)" />
                         <p v-else class="mt-3 rounded-full bg-primary/20 px-3 py-1 text-center text-sm font-semibold">
                             Déjà possédée
                         </p>
@@ -46,13 +44,12 @@
 
             <BaseCard v-else bgColor="bg-neutral-bg-dark" class="dark-border gap-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <p class="text-sm text-disabled">Reset toutes les heures (sauf si tu veux tricher -> Bouton rafraichir)</p>
+                    <p class="text-sm text-disabled">Reset toutes les heures (sauf si tu veux tricher -> Bouton
+                        rafraichir)</p>
                     <div class="flex items-center gap-2">
                         <p class="text-xs text-disabled">Reset dans: {{ resetCountdown }}</p>
-                        <Button bgColor="bg-neutral-overlay-dark text-light" @click="refreshSkins"
-                            :disabled="isLoadingSkins">
-                            Rafraîchir
-                        </Button>
+                        <ActionButton bgColor="bg-neutral-overlay-dark text-light" label="Rafraîchir"
+                            @click="refreshSkins" :disabled="isLoadingSkins" />
                     </div>
                 </div>
 
@@ -65,22 +62,23 @@
                         <p class="text-xs text-disabled">Arme: {{ skin.weaponName }}</p>
                         <p class="text-sm text-disabled">Prix: {{ skin.price }} crédits</p>
 
-                        <Button class="mt-3 w-full" @click="buySkin(skin)" :disabled="isSkinOwned(skin)">
-                            {{ isSkinOwned(skin) ? 'Déjà possédé' : 'Acheter' }}
-                        </Button>
+                        <ActionButton class="mt-3 w-full" @click="buySkin(skin)" :disabled="isSkinOwned(skin)"
+                            :label="isSkinOwned(skin) ? 'Déjà possédé' : 'Acheter'" />
                     </article>
                 </div>
             </BaseCard>
 
             <p v-if="feedback" class="mt-3 text-sm text-slate-700">{{ feedback }}</p>
-        </main>
+        </div>
     </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import BaseCard from '@/components/UI/BaseCard.vue'
-import Button from '@/components/UI/Button.vue'
+import ActionButton from '@/components/Buttons/actionButton.vue'
+import FilterButton from '@/components/Buttons/filterButton.vue'
+import ButtonsGallery from '@/components/Gallery/buttonsGallery.vue'
 import { fetchShopWeapons, getShopSkinRefreshMs } from '@/services/api/valorantAPI'
 import { usePlayerStore } from '@/store/playerStore'
 

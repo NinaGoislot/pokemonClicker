@@ -56,9 +56,8 @@
                                     <p class="text-center text-xs text-disabled mt-1">{{ pokemonWeaponLabel }}</p>
                                 </button>
 
-                                <Button v-else bgColor="bg-gradient" @click="openWeaponModal">
-                                    Associer une arme
-                                </Button>
+                                <ActionButton v-else bgColor="bg-gradient" @click="openWeaponModal"
+                                    label="Associer une arme" />
                             </div>
                         </div>
                     </div>
@@ -67,11 +66,10 @@
                 <p v-if="teamError" class="text-sm text-red-400">{{ teamError }}</p>
 
                 <div class="flex gap-2 justify-end">
-                    <Button bgColor="bg-gray-700" @click="close">Fermer</Button>
-                    <Button :bgColor="isInTeam ? 'bg-red-600' : 'bg-gradient'" @click="addToTeam" :disabled="loading">
-
-                        {{ loading ? 'Chargement...' : (isInTeam ? 'Retirer de l\'équipe' : 'Ajouter à l\'équipe') }}
-                    </Button>
+                    <ActionButton bgColor="bg-gray-700" @click="close" label="Fermer" />
+                    <ActionButton :bgColor="isInTeam ? 'bg-red-600' : 'bg-gradient'" @click="addToTeam"
+                        :disabled="loading"
+                        :label="loading ? 'Chargement...' : (isInTeam ? 'Retirer de l\'équipe' : 'Ajouter à l\'équipe')" />
                 </div>
             </BaseCard>
 
@@ -90,7 +88,7 @@ import { usePlayerStore } from '@/store/playerStore'
 import { fetchPokemonById } from '@/services/api/pokeAPI'
 import { fetchWeaponsCatalog, getWeaponImage, getWeaponSkinById } from '@/services/api/valorantAPI'
 import BaseCard from '../UI/BaseCard.vue'
-import Button from '../UI/Button.vue'
+import ActionButton from '../Buttons/actionButton.vue'
 import SwapModal from './SwapModal.vue'
 import WeaponAssignModal from './WeaponAssignModal.vue'
 

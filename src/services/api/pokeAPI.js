@@ -98,6 +98,10 @@ export async function fetchPokemonByName(name, options = {}) {
   return normalizePokemon(rawPokemon, isShiny)
 }
 
+export async function getPokemonByName(name, options = {}) {
+  return fetchPokemonByName(name, options)
+}
+
 export async function fetchPokemonShinySpriteById(id) {
   const rawPokemon = await fetchFromPokeAPI(`/pokemon/${id}`)
   const sprites = getSpriteUrls(rawPokemon, true)

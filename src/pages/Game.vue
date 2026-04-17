@@ -48,13 +48,13 @@
 
                 <BaseCard bgColor="bg-neutral-bg-dark" class="dark-border">
                     <p class="text-xs text-legend text-light">Difficulté</p>
-                    <div class="mt-2 flex gap-2">
-                        <Button v-for="difficulty in difficultyOptions" :key="difficulty.key"
-                            :bgColor="selectedDifficulty === difficulty.key ? 'bg-gradient' : 'bg-neutral-overlay-dark text-light'"
-                            @click="setDifficulty(difficulty.key)">
+                    <ButtonsGallery>
+                        <FilterButton v-for="difficulty in difficultyOptions" :key="difficulty.key"
+                            inactiveBgColor="bg-neutral-overlay-dark text-light"
+                            :isActive="selectedDifficulty === difficulty.key" @click="setDifficulty(difficulty.key)">
                             {{ difficulty.label }}
-                        </Button>
-                    </div>
+                        </FilterButton>
+                    </ButtonsGallery>
                 </BaseCard>
             </section>
 
@@ -67,9 +67,8 @@
                         <div class="flex items-center gap-2">
                             <p class="rounded-full bg-neutral-overlay-dark px-3 py-1 text-sm text-light">Temps: {{
                                 roundTimerLabel }}</p>
-                            <Button :disabled="isLoadingRound || isRoundRunning" @click="startRound">
-                                {{ isLoadingRound ? 'Chargement...' : 'Lancer un round' }}
-                            </Button>
+                            <ActionButton :disabled="isLoadingRound || isRoundRunning" @click="startRound"
+                                :label="isLoadingRound ? 'Chargement...' : 'Lancer un round'" />
                         </div>
                     </div>
 
@@ -126,10 +125,8 @@
                                 </div>
 
                                 <div v-else class="flex flex-col items-center gap-1">
-                                    <button @click="captureEnemy(enemy.instanceId)"
-                                        class="bg-gradient rounded-full px-3 py-0.5 text-black mx-auto cursor-pointer">
-                                        Capturer
-                                    </button>
+                                    <ActionButton @click="captureEnemy(enemy.instanceId)" label="Capturer"
+                                        class="rounded-full px-3 py-0.5 text-black mx-auto" />
                                     <p class="text-[11px] text-disabled">
                                         {{ Math.ceil(enemyCaptureTimeLeftMs(enemy) / 1000) }}s restantes
                                     </p>
@@ -145,7 +142,9 @@
 
 <script setup>
 import BaseCard from '@/components/UI/BaseCard.vue'
-import Button from '@/components/UI/Button.vue'
+import ActionButton from '@/components/Buttons/actionButton.vue'
+import FilterButton from '@/components/Buttons/filterButton.vue'
+import ButtonsGallery from '@/components/Gallery/buttonsGallery.vue'
 import { useGame } from '@/assets/js/gameScript.js'
 
 const {

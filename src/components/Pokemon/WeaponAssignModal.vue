@@ -41,8 +41,9 @@
                 </div>
 
                 <div class="flex justify-end gap-2">
-                    <Button bgColor="bg-neutral-overlay-dark text-light" @click="onCancel">Annuler</Button>
-                    <Button :disabled="!selectedWeaponId || !selectedSkinId" @click="onConfirm">Confirmer</Button>
+                    <ActionButton bgColor="bg-neutral-overlay-dark text-light" @click="onCancel" label="Annuler" />
+                    <ActionButton :disabled="!selectedWeaponId || !selectedSkinId" @click="onConfirm"
+                        label="Confirmer" />
                 </div>
             </BaseCard>
         </div>
@@ -59,7 +60,7 @@ import {
     getWeaponSkinById,
 } from '@/services/api/valorantAPI'
 import BaseCard from '../UI/BaseCard.vue'
-import Button from '../UI/Button.vue'
+import ActionButton from '../Buttons/actionButton.vue'
 
 const props = defineProps({
     isOpen: Boolean,

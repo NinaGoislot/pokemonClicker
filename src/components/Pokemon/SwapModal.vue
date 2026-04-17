@@ -12,10 +12,9 @@
             </div>
 
             <div class="flex gap-2 justify-end">
-                <Button bgColor="bg-gray-700" class="text-light font-normal" @click="$emit('cancel')">Annuler</Button>
-                <Button @click="$emit('swap', selected)" :disabled="selected === null">
-                    Échanger
-                </Button>
+                <ActionButton bgColor="bg-gray-700" class="text-light font-normal" @click="$emit('cancel')"
+                    label="Annuler" />
+                <ActionButton @click="$emit('swap', selected)" :disabled="selected === null" label="Échanger" />
             </div>
         </BaseCard>
     </div>
@@ -24,7 +23,7 @@
 <script setup>
 import { ref } from 'vue'
 import BaseCard from '../UI/BaseCard.vue'
-import Button from '../UI/Button.vue'
+import ActionButton from '../Buttons/actionButton.vue'
 
 defineProps({
     team: Array,

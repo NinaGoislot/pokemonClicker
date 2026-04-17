@@ -35,7 +35,7 @@ function randomInt(min, max) {
 }
 
 function toDurationLabel(ms) {
-  // Format a duration in ms as mm:ss
+  // Format a duration in ms as mm:ss.
   const safeMs = Math.max(ms, 0)
   const totalSeconds = Math.ceil(safeMs / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -44,7 +44,7 @@ function toDurationLabel(ms) {
 }
 
 function randomArenaPosition() {
-  // Random % position constrained to the arena
+  // Random % position constrained to the arena bounds.
   const left = Math.floor(Math.random() * 75)
   const top = Math.floor(Math.random() * 55)
   return {
@@ -54,12 +54,13 @@ function randomArenaPosition() {
 }
 
 function randomAttackDelay() {
+  // Per-enemy cooldown based on configured min/max.
   return randomInt(ENEMY_ATTACK_OPTIONS.minIntervalMs, ENEMY_ATTACK_OPTIONS.maxIntervalMs)
 }
 
 
 function createBattleTeamFromStore(activeTeam, difficultyConfig) {
-  // Normalize team members for battle state
+  // Normalize team members for battle state.
   const members = []
 
   for (const pokemon of activeTeam) {
@@ -67,8 +68,7 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
       continue
     }
 
-    const baseAttack = Number(pokemon.baseAttack) || 80
-    const baseHp = Number(pokemon.baseHp != null ? pokemon.baseHp : pokemon.baseAttack) || 80
+    const baseHp = Number(pokemon.baseAttack) || 80
     const maxHp = Math.max(Math.round(baseHp * difficultyConfig.playerHpMultiplier), 40)
 
     members.push({
@@ -77,9 +77,7 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
       spriteFront: pokemon.spriteFront,
       weaponId: pokemon.weaponId,
       skinId: pokemon.skinId,
-      baseAttack,
-      baseHp,
-      maxHp: maxHp,
+      maxHp,
       currentHp: maxHp,
       isDead: false,
     })
@@ -89,13 +87,7 @@ function createBattleTeamFromStore(activeTeam, difficultyConfig) {
 }
 
 export function useGame() {
-  // Main game logic and state management for the battle rounds
   const playerStore = usePlayerStore()
-
-  // Preload weapon catalog so selected weapon visuals/stats are available before round start
-  fetchWeaponsCatalog().catch((error) => {
-    console.error('Erreur preload catalogue armes', error)
-  })
 
   const selectedDifficulty = ref(DEFAULT_DIFFICULTY)
   const isLoadingRound = ref(false)
@@ -114,11 +106,10 @@ export function useGame() {
   const roundEndsAt = ref(0)
   const roundTimeLeftMs = ref(0)
 
-
   let instanceSeed = 0
-  let spawnTicker = null // Interval ID for enemy spawning  
-  let roundTicker = null // Interval ID for round timer and capture cleanup           
-  let attackTicker = null // Interval ID for enemy attacks  
+  let spawnTicker = null
+  let roundTicker = null
+  let attackTicker = null
 
   const difficultyOptions = computed(() => {
     return [ROUND_CONFIG.easy, ROUND_CONFIG.medium, ROUND_CONFIG.hard]
@@ -132,62 +123,69 @@ export function useGame() {
     return toDurationLabel(roundTimeLeftMs.value)
   })
 
-  const activePokemonState = computed(() => {
-    // Compute all derived data for the active Pokemon.
-    const pkmId = playerStore.activePokemonId
-    const member = pkmId ?
-      (battleTeam.value.find((entry) => entry.pokemonId === pkmId) || null) :
-      null
-    // Keep a store fallback for UI data when round state is not ready.
-    const storePokemon = playerStore.activePokemon
-
-    const sprite = member && member.spriteFront ?
-      member.spriteFront :
-      (storePokemon && storePokemon.spriteFront ? storePokemon.spriteFront : '')
-
-    const weaponId = member && member.weaponId ? member.weaponId : (storePokemon && storePokemon
-      .weaponId)
-    const skinId = member && member.skinId ? member.skinId : (storePokemon && storePokemon
-      .skinId)
-
-    const weaponSprite = weaponId ?
-      getWeaponImage(weaponId, skinId) : '';
-
-    const attackBase = Number(member && member.baseAttack != null ? member.baseAttack :
-      (storePokemon && storePokemon.baseAttack))
-    const attack = Number.isFinite(attackBase) ? Math.max(attackBase, 1) : 100
-
-    const weaponDamage = weaponId ?
-      getWeaponMaxDamage(weaponId) :
-      50
-
-    const hpPercent = member && member.maxHp ?
-      Math.max(Math.round((member.currentHp / member.maxHp) * 100), 0) :
-      0
-
-    return {
-      member,
-      sprite,
-      weaponSprite,
-      attack,
-      weaponDamage,
-      hpPercent,
+  const activeBattlePokemon = computed(() => {
+    const activeId = playerStore.activePokemonId
+    if (!activeId) {
+      return null
     }
+
+    return battleTeam.value.find((member) => member.pokemonId === activeId) || null
+  })
+
+  const activePokemonSprite = computed(() => {
+    const member = activeBattlePokemon.value
+    if (member && member.spriteFront) {
+      return member.spriteFront
+    }
+
+    const storePokemon = playerStore.activePokemon
+    return storePokemon && storePokemon.spriteFront ? storePokemon.spriteFront : ''
+  })
+
+  const activePokemonWeaponSprite = computed(() => {
+    const member = activeBattlePokemon.value
+    if (!member || !member.weaponId) {
+      return ''
+    }
+
+    return getWeaponImage(member.weaponId, member.skinId)
+  })
+
+  const activePokemonAttack = computed(() => {
+    const storePokemon = playerStore.activePokemon
+    const attack = Number(storePokemon && storePokemon.baseAttack)
+    return Number.isFinite(attack) ? Math.max(attack, 1) : 100
+  })
+
+  const activePokemonWeaponDamage = computed(() => {
+    const member = activeBattlePokemon.value
+    if (!member || !member.weaponId) {
+      return 50
+    }
+
+    return getWeaponMaxDamage(member.weaponId)
   })
 
   const clickDamage = computed(() => {
-    // Compute click damage based on active Pokemon's attack and weapon
-    const multiplier = activePokemonState.value.attack / 100 // if atk > 100 ? buff : debuff
-    return Math.max(Math.round(activePokemonState.value.weaponDamage * multiplier), 1)
+    const multiplier = activePokemonAttack.value / 100
+    return Math.max(Math.round(activePokemonWeaponDamage.value * multiplier), 1)
+  })
+
+  const playerHpPercent = computed(() => {
+    const member = activeBattlePokemon.value
+    if (!member || !member.maxHp) {
+      return 0
+    }
+
+    return Math.max(Math.round((member.currentHp / member.maxHp) * 100), 0)
   })
 
   const livingEnemiesCount = computed(() => {
-    // Count how many enemies are alive for UI and spawn logic
     return enemies.value.filter((enemy) => enemy.currentHp > 0).length
   })
 
   function clearTickers() {
-    // Stop all running interval
+    // Stop all running intervals.
     if (spawnTicker) {
       clearInterval(spawnTicker)
       spawnTicker = null
@@ -205,7 +203,7 @@ export function useGame() {
   }
 
   function resetRoundState() {
-    // Reset battle state
+    // Reset transient battle state.
     clearTickers()
     enemies.value = []
     battleTeam.value = []
@@ -222,10 +220,10 @@ export function useGame() {
   }
 
   function createEnemyInstance(pokemon, loadout, rarity, difficultyConfig) {
-    // Merge Pokemon stats with battle metadata
+    // Merge Pokemon stats with battle metadata.
     instanceSeed += 1
 
-    const baseHp = Number(pokemon.stats && pokemon.stats.hp) || 80
+    const baseHp = Number(pokemon.stats && pokemon.stats.hp) || 60
     const maxHp = Math.max(Math.round(baseHp * difficultyConfig.enemyHpMultiplier), 80)
     const weaponDamage = getWeaponMaxDamage(loadout.weaponId)
 
@@ -248,12 +246,12 @@ export function useGame() {
   }
 
   function getLivingTeamMembers() {
-    // Filter alive allies
+    // Filter alive allies.
     return battleTeam.value.filter((member) => !member.isDead && member.currentHp > 0)
   }
 
   function switchToNextLivingPokemon() {
-    // Auto switch to the next alive ally
+    // Auto switch to the next alive ally.
     const nextMember = getLivingTeamMembers()[0] || null
     if (!nextMember) {
       return false
@@ -264,7 +262,7 @@ export function useGame() {
   }
 
   function setRoundFinished(result, feedback) {
-    // End round and freeze state
+    // End round and freeze state.
     if (!isRoundRunning.value) {
       return
     }
@@ -277,17 +275,18 @@ export function useGame() {
   }
 
   function loseRound() {
-    // Apply penalty and stop the round
+    // Apply penalty and stop the round.
     const lostCredits = playerStore.loseCreditsPercent(CREDIT_PENALTIES.loseRoundPercent)
-    setRoundFinished('lost', `Round perdu. -${lostCredits} crédits. Quelle honte...`)
+    setRoundFinished('lost', `Round perdu. -${lostCredits} crédits.`)
   }
 
   function winRound() {
-    // Stop the round with a win message
-    setRoundFinished('won', 'Round terminé. Bien joué !')
+    // Stop the round with a win message.
+    setRoundFinished('won', 'Round terminé. Bien joué.')
   }
 
   function markEnemyAsDead(enemy) {
+    // Set capture window and queue a spawn attempt.
     enemy.currentHp = 0
     enemy.capturableUntil = Date.now() + CAPTURE_OPTIONS.availableWindowMs
     killsCount.value += 1
@@ -299,8 +298,8 @@ export function useGame() {
   }
 
   function runEnemyAttack(enemy) {
-    // Execute one enemy attack cycle
-    const activeMember = activePokemonState.value.member
+    // Execute one enemy attack cycle.
+    const activeMember = activeBattlePokemon.value
     if (!activeMember || activeMember.isDead || activeMember.currentHp <= 0) {
       return
     }
@@ -315,7 +314,7 @@ export function useGame() {
       playerHitFlash.value = false
     }, 220)
 
-    const attackDamage = Math.max(Math.round(enemy.weaponDamage * 0.35), 10)
+    const attackDamage = Math.max(Math.round(enemy.weaponDamage * 0.34), 10)
     activeMember.currentHp = Math.max(activeMember.currentHp - attackDamage, 0)
 
     if (activeMember.currentHp <= 0) {
@@ -328,12 +327,12 @@ export function useGame() {
   }
 
   function updateEnemyAttackLoop() {
-    // Tick for all enemies that can attack
+    // Tick for all enemies that can attack.
     if (!isRoundRunning.value) {
       return
     }
 
-    const activeMember = activePokemonState.value.member
+    const activeMember = activeBattlePokemon.value
     if (!activeMember || activeMember.isDead || activeMember.currentHp <= 0) {
       const switched = switchToNextLivingPokemon()
       if (!switched) {
@@ -358,7 +357,7 @@ export function useGame() {
   }
 
   function cleanupExpiredCaptures() {
-    // Remove dead enemies whose capture window ended
+    // Remove dead enemies whose capture window ended.
     const now = Date.now()
     enemies.value = enemies.value.filter((enemy) => {
       if (enemy.currentHp > 0) {
@@ -371,7 +370,7 @@ export function useGame() {
 
 
   async function spawnOneEnemy(difficultyConfig) {
-    // Spawn a single enemy
+    // Spawn a single enemy with rarity + loadout.
     const rarity = getRarityFromKills(killsCount.value)
     const pokemon = await fetchPokemonForRarity(rarity)
     if (!pokemon || !pokemon.sprites || !pokemon.sprites.front) {
@@ -387,7 +386,7 @@ export function useGame() {
   }
 
   async function spawnEnemiesIfNeeded(forceSpawn) {
-    // Decide how many enemies to add and spawn them
+    // Decide how many enemies to add and spawn them.
     if (!isRoundRunning.value) {
       return
     }
@@ -395,12 +394,7 @@ export function useGame() {
     cleanupExpiredCaptures()
 
     const difficultyConfig = currentDifficulty.value
-    let aliveCount = 0
-    for (const enemy of enemies.value) {
-      if (enemy.currentHp > 0) {
-        aliveCount += 1
-      }
-    }
+    const aliveCount = enemies.value.filter((enemy) => enemy.currentHp > 0).length
 
     if (aliveCount >= difficultyConfig.maxEnemies) {
       return
@@ -432,7 +426,7 @@ export function useGame() {
   }
 
   function setupRoundTickers() {
-    // Start main round timers (spawn, round clock, attacks)
+    // Start main round timers (spawn, round clock, attacks).
     const difficultyConfig = currentDifficulty.value
 
     spawnTicker = setInterval(() => {
@@ -478,8 +472,7 @@ export function useGame() {
     })
 
     if (!teamHasLoadout) {
-      roundFeedback.value =
-        'Tous les pokémons de l\'équipe doivent avoir une arme et un skin pour lancer !'
+      roundFeedback.value = 'Tous les pokémons de l\'équipe doivent avoir une arme et un skin.'
       return
     }
 
@@ -494,8 +487,7 @@ export function useGame() {
       battleTeam.value = createBattleTeamFromStore(playerStore.activeTeam, difficultyConfig)
 
       if (!battleTeam.value.length) {
-        roundFeedback.value =
-          'Aucun pokémon vivant pour lancer le round. Tu sembles être un piètre dresseur...'
+        roundFeedback.value = 'Aucun pokémon vivant pour lancer le round.'
         return
       }
 
@@ -518,7 +510,7 @@ export function useGame() {
   }
 
   function setPlayerAttackPulse() {
-    // Brief recoil animation on player attacks
+    // Brief recoil animation on player attacks.
     playerRecoil.value = true
     setTimeout(() => {
       playerRecoil.value = false
@@ -526,7 +518,7 @@ export function useGame() {
   }
 
   function damageEnemy(enemyInstanceId) {
-    // Apply click damage
+    // Apply click damage to a single enemy.
     if (!isRoundRunning.value) {
       return
     }
@@ -550,7 +542,7 @@ export function useGame() {
   }
 
   async function captureEnemy(enemyInstanceId) {
-    // Capture a dead enemy
+    // Capture a dead enemy during its capture window.
     const index = enemies.value.findIndex((entry) => entry.instanceId === enemyInstanceId)
     if (index < 0) {
       return
@@ -570,9 +562,7 @@ export function useGame() {
       id: enemy.id,
       name: enemy.name,
       displayName: enemy.displayName,
-      types: [...enemy.types],
       stats: enemy.stats,
-      isLegendary: enemy.rarity === 'legendary' || enemy.rarity === 'shiny-legendary',
       sprites: {
         front: enemy.sprites.front,
       },
@@ -597,7 +587,7 @@ export function useGame() {
   }
 
   function enemyHpPercent(enemy) {
-    // Compute HP percent for UI
+    // Compute HP percent for UI.
     if (!enemy.maxHp) {
       return 0
     }
@@ -606,7 +596,7 @@ export function useGame() {
   }
 
   function enemyCaptureTimeLeftMs(enemy) {
-    // Remaining capture time for UI
+    // Remaining capture time for UI.
     if (enemy.currentHp > 0 || !enemy.capturableUntil) {
       return 0
     }
@@ -615,7 +605,7 @@ export function useGame() {
   }
 
   function setDifficulty(level) {
-    // Change difficulty, between rounds only
+    // Change difficulty between rounds only.
     if (isRoundRunning.value) {
       return
     }
@@ -645,7 +635,10 @@ export function useGame() {
     setDifficulty,
     roundTimerLabel,
     clickDamage,
-    activePokemonState,
+    activePokemonSprite,
+    activePokemonWeaponSprite,
+    activeBattlePokemon,
+    playerHpPercent,
     playerHitFlash,
     playerRecoil,
     livingEnemiesCount,

@@ -115,31 +115,25 @@ export function normalizePokemonEntry(pokemon) {
     return null
   }
 
-  let weaponId = null
-  let skinId = null
-  if (pokemon && typeof pokemon === 'object') {
-    if (pokemon.weaponId) {
-      weaponId = pokemon.weaponId
-    }
-    if (pokemon.skinId) {
-      skinId = pokemon.skinId
-    }
-
-    // Backward compatibility with old shape { weapon: { id } }
-    if (!weaponId && pokemon.weapon && typeof pokemon.weapon === 'object') {
-      weaponId = pokemon.weapon.id || null
-    }
-  }
-
   return {
     pokemonId,
     name: pokemon.displayName || pokemon.name || 'Pokemon',
     spriteFront: getSpriteFront(pokemon, pokemonId),
     isShiny: Boolean(pokemon.isShiny),
+    isLegendary: Boolean(pokemon.isLegendary),
     baseAttack: getPokemonBaseAttack(pokemon),
     baseHp: getPokemonBaseHp(pokemon),
-    weaponId,
-    skinId,
+    types: [...pokemon.types],
+    stats: {
+      hp: Number(pokemon.stats.hp) || getPokemonBaseHp(pokemon),
+      attack: Number(pokemon.stats.attack) || getPokemonBaseAttack(pokemon),
+      defense: Number(pokemon.stats.defense) || 50,
+      specialAttack: Number(pokemon.stats.specialAttack) || 50,
+      specialDefense: Number(pokemon.stats.specialDefense) || 50,
+      speed: Number(pokemon.stats.speed) || 50,
+    },
+    weaponId: pokemon.weaponId || null,
+    skinId: pokemon.skinId || null,
   }
 }
 
