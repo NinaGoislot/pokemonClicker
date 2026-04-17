@@ -55,13 +55,9 @@ async function executeUrlCommand(command, playerStore) {
     return
   }
 
-  const existingPokemon = playerStore.findPokedexEntryById(pokemonId)
-  if (existingPokemon) {
-    return
-  }
-
   const pokemon = await fetchPokemonById(pokemonId, {
     isShiny: shouldAddShinyPokemon,
+    includeSpeciesFlags: true,
   })
   playerStore.addPokemonToPokedex(pokemon)
 }

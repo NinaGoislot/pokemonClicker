@@ -282,12 +282,13 @@ export const usePlayerStore = defineStore('player', {
 
       const existing = this.findPokedexEntryById(entry.pokemonId)
       if (existing) {
-        if (entry.isShiny) {
-          existing.isShiny = true
-          existing.spriteFront = entry.spriteFront || existing.spriteFront
-        }
-
-        existing.isLegendary = existing.isLegendary || entry.isLegendary
+        // Overwrite stale data with the latest fetched version
+        existing.name = entry.name
+        existing.spriteFront = entry.spriteFront
+        existing.isShiny = entry.isShiny
+        existing.isLegendary = entry.isLegendary
+        existing.baseAttack = entry.baseAttack
+        existing.baseHp = entry.baseHp
         existing.types = [...entry.types]
         existing.stats = {
           ...entry.stats
