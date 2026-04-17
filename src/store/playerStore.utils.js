@@ -60,11 +60,14 @@ export function normalizeWeaponInventory(rawInventory) {
 
     const rawSkins = Array.isArray(weapon.skins) ? weapon.skins : []
     const uniqueSkinIds = [...new Set(rawSkins.filter((skinId) => Boolean(skinId)))]
+    const rawQuantity = Number(weapon.quantity)
+    const quantity = Number.isFinite(rawQuantity) ? Math.max(Math.round(rawQuantity), 1) : 1
 
     normalized.push({
       id: weaponId,
       name: weapon.name || 'Arme',
       skins: uniqueSkinIds,
+      quantity,
     })
     seenIds.add(weaponId)
   }

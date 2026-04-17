@@ -32,12 +32,8 @@
                         <img :src="weapon.image" :alt="weapon.name" class="mx-auto h-24 w-full object-contain" />
                         <p class="mt-2 text-lg font-semibold text-light">{{ weapon.name }}</p>
                         <p class="text-sm text-disabled">Prix: {{ weapon.price }} crédits</p>
-
-                        <ActionButton v-if="!isWeaponOwned(weapon.id)" class="mt-3 w-full" label="Acheter"
-                            @click="buyWeapon(weapon)" />
-                        <p v-else class="mt-3 rounded-full bg-primary/20 px-3 py-1 text-center text-sm font-semibold">
-                            Déjà possédée
-                        </p>
+                        <p class="text-xs text-disabled mt-1">Possédées: {{ getOwnedWeaponQuantity(weapon.id) }}</p>
+                        <ActionButton class="mt-3 w-full" label="Acheter" @click="buyWeapon(weapon)" />
                     </BaseCard>
                 </div>
             </BaseCard>
@@ -101,8 +97,9 @@ const resetCountdown = computed(() => {
     return `${remainingMinutes}m`
 })
 
-function isWeaponOwned(weaponId) {
-    return Boolean(playerStore.findOwnedWeaponById(weaponId))
+function getOwnedWeaponQuantity(weaponId) {
+    const weapon = playerStore.findOwnedWeaponById(weaponId)
+    return weapon ? Math.max(Number(weapon.quantity) || 1, 1) : 0
 }
 
 function isSkinOwned(skin) {
@@ -150,16 +147,11 @@ function buyWeapon(weapon) {
             return
         }
 
-        if (result.reason === 'already-owned') {
-            feedback.value = 'Arme déjà possédée.'
-            return
-        }
-
         feedback.value = 'Achat impossible.'
         return
     }
 
-    feedback.value = `${weapon.name} ajoutée à ton inventaire.`
+    feedback.value = `${weapon.name} ajoutée. Quantité: ${getOwnedWeaponQuantity(weapon.id)}.`
 }
 
 function buySkin(skin) {

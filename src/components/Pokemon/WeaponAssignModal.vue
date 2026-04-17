@@ -12,7 +12,7 @@
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div class="rounded-lg bg-neutral-overlay-dark p-3">
                         <p class="mb-2 text-xs text-legend text-light">Armes possédées</p>
-                        <div class="flex max-h-64 sm:max-h-80 flex-col gap-2 overflow-auto pr-1">
+                        <div class="flex max-h-64 sm:max-h-80 flex-col gap-2  pr-1">
                             <button v-for="weapon in weaponChoices" :key="weapon.id"
                                 class="flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer"
                                 :class="selectedWeaponId === weapon.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
@@ -23,13 +23,16 @@
                                     <p class="font-semibold text-sm sm:text-base text-light">{{ weapon.name }}</p>
                                     <p class="text-xs text-disabled">{{ weapon.skinCount }} skins dispo</p>
                                 </div>
+                                <p class="text-xs text-disabled text-end ml-auto">Exemplaires restants : {{
+                                    weapon.availableUnits }}</p>
+
                             </button>
                         </div>
                     </div>
 
                     <div class="rounded-lg bg-neutral-overlay-dark p-3">
                         <p class="mb-2 text-xs text-legend text-light">Skins disponibles</p>
-                        <div class="grid max-h-64 sm:max-h-80 grid-cols-2 gap-2 overflow-auto pr-1">
+                        <div class="grid max-h-64 sm:max-h-80 grid-cols-2 gap-2 pr-1">
                             <button v-for="skin in skinChoices" :key="skin.id"
                                 class="rounded-lg border p-2 transition cursor-pointer"
                                 :class="selectedSkinId === skin.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
@@ -47,6 +50,8 @@
                     <ActionButton :disabled="!selectedWeaponId || !selectedSkinId" @click="onConfirm"
                         label="Confirmer" />
                 </div>
+
+                <p v-if="errorMessage" class="text-sm text-red-400">{{ errorMessage }}</p>
             </BaseCard>
         </div>
     </Transition>
@@ -54,6 +59,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { usePlayerStore } from '@/store/playerStore'
 import {
     fetchWeaponsCatalog,
     getWeaponById,
@@ -67,11 +73,17 @@ import ActionButton from '../Buttons/actionButton.vue'
 const props = defineProps({
     isOpen: Boolean,
     inventory: Array,
+    currentPokemonId: Number,
     currentWeaponId: String,
     currentSkinId: String,
+    errorMessage: {
+        type: String,
+        default: '',
+    },
 })
 
-const emit = defineEmits(['cancel', 'confirm'])
+const emit = defineEmits(['cancel', 'confirm', 'clearError'])
+const playerStore = usePlayerStore()
 
 const selectedWeaponId = ref('')
 const selectedSkinId = ref('')
@@ -88,6 +100,7 @@ const weaponChoices = computed(() => {
             name: weaponData ? weaponData.name : ownedWeapon.name,
             image: getWeaponImage(ownedWeapon.id, ''),
             skinCount,
+            availableUnits: playerStore.getWeaponAvailableUnits(ownedWeapon.id, props.currentPokemonId),
         }
     })
 })
@@ -132,10 +145,12 @@ function ensureSelectedSkin() {
 function selectWeapon(weaponId) {
     selectedWeaponId.value = weaponId
     ensureSelectedSkin()
+    emit('clearError')
 }
 
 function selectSkin(skinId) {
     selectedSkinId.value = skinId
+    emit('clearError')
 }
 
 function onCancel() {

@@ -77,8 +77,10 @@
 
             <SwapModal v-if="showSwap" :team="playerStore.activeTeam" @swap="handleSwap" @cancel="showSwap = false" />
             <WeaponAssignModal :isOpen="showWeaponModal" :inventory="playerStore.weaponInventory"
+                :currentPokemonId="props.pokemon.pokemonId"
                 :currentWeaponId="currentPokemonEntry ? currentPokemonEntry.weaponId : ''"
-                :currentSkinId="currentPokemonEntry ? currentPokemonEntry.skinId : ''" @cancel="showWeaponModal = false"
+                :currentSkinId="currentPokemonEntry ? currentPokemonEntry.skinId : ''"
+                :errorMessage="weaponAssignError" @clearError="weaponAssignError = ''" @cancel="closeWeaponModal"
                 @confirm="confirmWeaponAssociation" />
         </div>
     </Transition>
@@ -109,6 +111,7 @@ const showSwap = ref(false)
 const showWeaponModal = ref(false)
 const isInTeam = ref(false)
 const teamError = ref('')
+const weaponAssignError = ref('')
 const STATS_BAR_MAX_VALUE = 230
 
 const currentPokemonEntry = computed(() => {
@@ -167,17 +170,23 @@ const statName = (stat) => {
 const close = () => emit('close')
 
 const openWeaponModal = () => {
+    weaponAssignError.value = ''
     showWeaponModal.value = true
+}
+
+const closeWeaponModal = () => {
+    weaponAssignError.value = ''
+    showWeaponModal.value = false
 }
 
 const confirmWeaponAssociation = ({ weaponId, skinId }) => {
     const done = playerStore.setPokemonWeaponLoadout(props.pokemon.pokemonId, weaponId, skinId)
     if (!done) {
-        teamError.value = 'Association impossible. Vérifie tes armes et skins possédés.'
+        weaponAssignError.value = 'Association impossible. Tu n\'as pas assez d\'exemplaire de cette arme ! Direction le shop mon coco.'
         return
     }
 
-    teamError.value = ''
+    weaponAssignError.value = ''
     showWeaponModal.value = false
 }
 

@@ -28,6 +28,7 @@ function cloneWeaponInventoryEntry(weapon) {
     id: weapon.id,
     name: weapon.name,
     skins: Array.isArray(weapon.skins) ? [...weapon.skins] : [],
+    quantity: Math.max(Number(weapon.quantity) || 1, 1),
   }
 }
 
@@ -78,6 +79,31 @@ export const usePlayerStore = defineStore('player', {
       )
     },
 
+    getWeaponAssignedCount(weaponId, excludedPokemonId = null) {
+      return this.pokedex.filter((pokemon) => {
+        if (pokemon.weaponId !== weaponId) {
+          return false
+        }
+
+        if (excludedPokemonId !== null && pokemon.pokemonId === excludedPokemonId) {
+          return false
+        }
+
+        return true
+      }).length
+    },
+
+    getWeaponAvailableUnits(weaponId, excludedPokemonId = null) {
+      const weapon = this.findOwnedWeaponById(weaponId)
+      if (!weapon) {
+        return 0
+      }
+
+      const quantity = Math.max(Number(weapon.quantity) || 1, 1)
+      const assigned = this.getWeaponAssignedCount(weaponId, excludedPokemonId)
+      return Math.max(quantity - assigned, 0)
+    },
+
     ensureClassicWeaponInInventory() {
       const classic = getClassicWeapon()
       const existing = this.findOwnedWeaponById(classic.id)
@@ -86,6 +112,8 @@ export const usePlayerStore = defineStore('player', {
         this.weaponInventory.push(cloneWeaponInventoryEntry(classic))
         return
       }
+
+      existing.quantity = Math.max(Number(existing.quantity) || 1, 1)
 
       if (!Array.isArray(existing.skins)) {
         existing.skins = []
@@ -189,7 +217,9 @@ export const usePlayerStore = defineStore('player', {
           baseAttack: getPokemonBaseAttack(entry),
           baseHp: getPokemonBaseHp(entry),
           types: [...entry.types],
-          stats: { ...entry.stats },
+          stats: {
+            ...entry.stats
+          },
           weaponId: entry.weaponId || null,
           skinId: entry.skinId || null,
         })),
@@ -269,7 +299,9 @@ export const usePlayerStore = defineStore('player', {
 
         existing.isLegendary = existing.isLegendary || entry.isLegendary
         existing.types = [...entry.types]
-        existing.stats = { ...entry.stats }
+        existing.stats = {
+          ...entry.stats
+        }
 
         this.saveToStorage()
         return existing
@@ -298,6 +330,11 @@ export const usePlayerStore = defineStore('player', {
         return false
       }
 
+      const availableUnits = this.getWeaponAvailableUnits(weaponId, entry.pokemonId)
+      if (availableUnits <= 0) {
+        return false
+      }
+
       entry.weaponId = weaponId
       entry.skinId = skinId
       this.saveToStorage()
@@ -312,13 +349,6 @@ export const usePlayerStore = defineStore('player', {
         }
       }
 
-      if (this.findOwnedWeaponById(weapon.id)) {
-        return {
-          success: false,
-          reason: 'already-owned'
-        }
-      }
-
       if (!this.spendCredits(weapon.price)) {
         return {
           success: false,
@@ -326,12 +356,19 @@ export const usePlayerStore = defineStore('player', {
         }
       }
 
-      const skins = weapon.defaultSkinId ? [weapon.defaultSkinId] : []
-      this.weaponInventory.push({
-        id: weapon.id,
-        name: weapon.name,
-        skins,
-      })
+      const existing = this.findOwnedWeaponById(weapon.id)
+      if (existing) {
+        existing.quantity = Math.max(Number(existing.quantity) || 1, 1) + 1
+      } else {
+        const skins = weapon.defaultSkinId ? [weapon.defaultSkinId] : []
+        this.weaponInventory.push({
+          id: weapon.id,
+          name: weapon.name,
+          skins,
+          quantity: 1,
+        })
+      }
+
       this.ensureDefaultSkinInOwnedWeapon(weapon.id)
       this.saveToStorage()
 
