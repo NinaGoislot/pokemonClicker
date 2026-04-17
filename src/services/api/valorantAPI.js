@@ -1,5 +1,6 @@
 const API_BASE_URL = 'https://valorant-api.com/v1'
 const SHOP_SKIN_REFRESH_MS = 60 * 60 * 1000
+const SKIN_SELL_PRICE_MULTIPLIER = 2 // Pour pas que les skins soient trop faciles  à obtenir
 
 const CATEGORY_NAMES = {
   1: ['classic', 'shorty', 'frenzy', 'ghost', 'stinger', 'spectre', 'bucky', 'ares', 'judge'],
@@ -21,7 +22,7 @@ const FALLBACK_CLASSIC = {
     weaponId: '42da8ccc-40d5-affc-beec-15aa47b42eda',
     name: 'Classic Standard',
     image: 'https://media.valorant-api.com/weaponskins/0fdb6f8d-46b8-b3b7-a7e3-83b5a153da6a/displayicon.png',
-    price: 200,
+    price: 400,
   }, ],
 }
 
@@ -94,7 +95,7 @@ function normalizeSkin(rawSkin, weaponId, fallbackPrice) {
     weaponId,
     name: rawSkin.displayName || 'Skin',
     image: getRawImage(rawSkin),
-    price: Math.max(Math.round(fallbackPrice), 150),
+    price: Math.max(Math.round(fallbackPrice * SKIN_SELL_PRICE_MULTIPLIER), 1000),
   }
 }
 
@@ -332,8 +333,7 @@ export async function getRandomEnemyLoadout(options = {}) {
 
   const allowedCategoryIds = Array.isArray(options.allowedCategoryIds) && options
     .allowedCategoryIds.length ?
-    options.allowedCategoryIds :
-    [1, 2, 3, 4]
+    options.allowedCategoryIds : [1, 2, 3, 4]
   const categoryWeights = options.categoryWeights || {
     1: 0.6,
     2: 0.25,

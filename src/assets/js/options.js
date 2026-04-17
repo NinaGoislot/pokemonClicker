@@ -7,7 +7,7 @@ export const ROUND_CONFIG = {
     maxEnemies: 4,
     spawnIntervalMs: 20000,
     enemyCategoryIds: [1, 2],
-    enemyHpMultiplier: 2.6,
+    enemyHpMultiplier: 4.,
     playerHpMultiplier: 2.5,
   },
   medium: {
@@ -18,7 +18,7 @@ export const ROUND_CONFIG = {
     maxEnemies: 8,
     spawnIntervalMs: 10000,
     enemyCategoryIds: [1, 2, 3],
-    enemyHpMultiplier: 3.3,
+    enemyHpMultiplier: 8.,
     playerHpMultiplier: 2.5,
   },
   hard: {
@@ -29,7 +29,7 @@ export const ROUND_CONFIG = {
     maxEnemies: 20,
     spawnIntervalMs: 5000,
     enemyCategoryIds: [1, 2, 3, 4],
-    enemyHpMultiplier: 4.2,
+    enemyHpMultiplier: 20.,
     playerHpMultiplier: 2.5,
   },
 }
@@ -37,8 +37,8 @@ export const ROUND_CONFIG = {
 export const DEFAULT_DIFFICULTY = 'easy'
 
 export const CREDIT_REWARDS = {
-  enemyKill: 35,
-  capture: 80,
+  enemyKill: 15,
+  capture: 40,
 }
 
 export const CREDIT_PENALTIES = {
