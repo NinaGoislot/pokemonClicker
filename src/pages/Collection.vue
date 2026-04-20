@@ -5,6 +5,9 @@
             <p class="text-sm text-disabled">
                 Pokemons : {{ playerStore.pokedex.length }} sur {{ MAX_POKEMON_ID }}
             </p>
+            <p class="text-sm text-disabled">
+                ShinyDex : {{ playerStore.shinyDexCount }} sur {{ MAX_POKEMON_ID }}
+            </p>
 
             <BaseCard class="light-border" bgColor="bg-neutral-raised-light gap-4">
                 <div class="">

@@ -12,7 +12,7 @@
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div class="rounded-lg bg-neutral-overlay-dark p-3">
                         <p class="mb-2 text-xs text-legend text-light">Armes possédées</p>
-                        <div class="flex max-h-64 sm:max-h-80 flex-col gap-2  pr-1">
+                        <div class="flex max-h-64 sm:max-h-80 flex-col gap-2 pr-1 overflow-y-auto">
                             <button v-for="weapon in weaponChoices" :key="weapon.id"
                                 class="flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition cursor-pointer"
                                 :class="selectedWeaponId === weapon.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
@@ -32,7 +32,7 @@
 
                     <div class="rounded-lg bg-neutral-overlay-dark p-3">
                         <p class="mb-2 text-xs text-legend text-light">Skins disponibles</p>
-                        <div class="grid max-h-64 sm:max-h-80 grid-cols-2 gap-2 pr-1">
+                        <div class="grid max-h-64 sm:max-h-80 grid-cols-2 gap-2 pr-1 overflow-y-auto">
                             <button v-for="skin in skinChoices" :key="skin.id"
                                 class="rounded-lg border p-2 transition cursor-pointer"
                                 :class="selectedSkinId === skin.id ? 'border-primary bg-primary/20' : 'border-surface-border bg-neutral-raised-dark'"
@@ -65,9 +65,7 @@ import { usePlayerStore } from '@/store/playerStore'
 import {
     fetchWeaponsCatalog,
     getWeaponById,
-    getWeaponDefaultSkinId,
     getWeaponImage,
-    getWeaponSkinById,
 } from '@/services/api/valorantAPI'
 import BaseCard from '../UI/BaseCard.vue'
 import ActionButton from '../Buttons/actionButton.vue'
@@ -119,20 +117,12 @@ const skinChoices = computed(() => {
         return []
     }
 
-    const defaultSkinId = getWeaponDefaultSkinId(selectedWeapon.id)
     const ownedSkins = Array.isArray(selectedWeapon.skins) ? selectedWeapon.skins : []
-    const skinIds = defaultSkinId
-        ? [defaultSkinId, ...ownedSkins.filter((skinId) => skinId !== defaultSkinId)]
-        : [...ownedSkins]
-
-    return skinIds.map((skinId) => {
-        const skin = getWeaponSkinById(skinId)
-        return {
-            id: skinId,
-            name: skin ? skin.name : 'Skin',
-            image: getWeaponImage(selectedWeapon.id, skinId),
-        }
-    })
+    return ownedSkins.map((skin) => ({
+        id: skin.id,
+        name: skin.nom,
+        image: skin.image,
+    }))
 })
 
 function ensureSelectedSkin() {
@@ -168,8 +158,12 @@ function onConfirm() {
         return
     }
 
+    const inventory = Array.isArray(props.inventory) ? props.inventory : []
+    const selectedWeapon = inventory.find((weapon) => weapon.id === selectedWeaponId.value)
+    const weaponName = selectedWeapon ? selectedWeapon.name : ''
+
     emit('confirm', {
-        weaponId: selectedWeaponId.value,
+        weaponName,
         skinId: selectedSkinId.value,
     })
 }
@@ -194,7 +188,7 @@ async function initializeSelection() {
 
     const selectedWeapon = inventory.find((weapon) => weapon.id === selectedWeaponId.value)
     const hasCurrentSkin = selectedWeapon && Array.isArray(selectedWeapon.skins)
-        ? selectedWeapon.skins.includes(props.currentSkinId)
+        ? selectedWeapon.skins.some((s) => s.id === props.currentSkinId)
         : false
 
     if (hasCurrentSkin) {

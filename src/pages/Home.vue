@@ -22,6 +22,11 @@
                 <p class="mt-2">Credits: {{ playerStore.profile.wallet }}</p>
                 <p class="mt-2 text-sm text-slate-600">Taille pokedex: {{ playerStore.pokedex.length }}</p>
             </BaseCard>
+            <ActionButton bgColor="" class="mx-auto" label="Jouer">
+                <router-link to="/collection">
+                    Ajouter des pokémons a mon équipe
+                </router-link>
+            </ActionButton>
             <ActionButton bgColor="bg-neutral-raised-dark text-white" class="mx-auto" label="Jouer">
                 <router-link to="/game">
                     Jouer
@@ -36,6 +41,9 @@ import { computed, onMounted, ref } from 'vue'
 import BaseCard from '../components/UI/BaseCard.vue'
 import ActionButton from '../components/Buttons/actionButton.vue'
 import { usePlayerStore } from '../store/playerStore'
+import { fetchPokemonById } from '../services/api/pokeAPI'
+
+const DEBUG_MODE = true;
 
 const playerStore = usePlayerStore()
 const playerName = ref('')
@@ -65,7 +73,35 @@ async function createPlayer() {
     }
 }
 
-onMounted(() => {
+async function reloadAllPokedexEntriesFromApi() { // mainly for development to easily get updated data from the API without having to recapture pokemons    
+    const pokedexSnapshot = [...playerStore.pokedex]
+
+    for (const entry of pokedexSnapshot) {
+        const pokemonId = Number(entry.pokemonId)
+        if (!Number.isFinite(pokemonId)) {
+            continue
+        }
+
+        try {
+            const normalizedPokemon = await fetchPokemonById(pokemonId, {
+                isShiny: Boolean(entry.isShiny),
+            })
+            playerStore.addPokemonToPokedex(normalizedPokemon, Boolean(entry.isShiny))
+        } catch (error) {
+            console.error(`Impossible de recharger le pokemon ${pokemonId}`, error)
+        }
+    }
+
+    // Recalculate shinyDexCount from scratch
+    playerStore.shinyDexCount = playerStore.pokedex.filter((p) => p.isShiny).length
+    playerStore.saveToStorage()
+}
+
+onMounted(async () => {
     playerStore.loadFromStorage()
+
+    if (playerStore.hasPlayer && playerStore.pokedex.length && DEBUG_MODE) {
+        await reloadAllPokedexEntriesFromApi()
+    }
 })
 </script>

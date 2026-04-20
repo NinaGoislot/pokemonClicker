@@ -165,7 +165,12 @@ export async function fetchPokemonForRarity(rarity) {
     (pickRandomFromList(legendaryPokemonIds) || randomInt(1, MAX_POKEMON_ID)) :
     getNormalPokemonId()
 
-  return fetchPokemonById(pokemonId, {
+  const pokemon = await fetchPokemonById(pokemonId, {
     isShiny
   })
+
+  return {
+    ...pokemon,
+    isLegendary,
+  }
 }

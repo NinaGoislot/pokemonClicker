@@ -18,7 +18,7 @@ export const ROUND_CONFIG = {
     maxEnemies: 8,
     spawnIntervalMs: 10000,
     enemyCategoryIds: [1, 2, 3],
-    enemyHpMultiplier: 8.,
+    enemyHpMultiplier: 6.,
     playerHpMultiplier: 2.5,
   },
   hard: {
@@ -61,7 +61,7 @@ export const RARITY_OPTIONS = {
   killBonusLegendary: 0.00015, // +0.015% per kill
   killBonusShiny: 0.00012, // +0.012% per kill
   killBonusShinyLegendary: 0.000015, // +0.0015% per kill
-  maxLegendaryChance: 0.005, // 0.%
+  maxLegendaryChance: 0.005, // 0,5%
   maxShinyChance: 0.05, // 5%
   maxShinyLegendaryChance: 0.0005, // 0,05%
 }
@@ -70,5 +70,5 @@ export const WEAPON_CATEGORY_SPAWN_WEIGHTS = {
   1: 0.63,
   2: 0.25,
   3: 0.09,
-  4: 0.03,
+  4: 0.05,
 }

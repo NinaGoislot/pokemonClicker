@@ -14,15 +14,16 @@
         <button class="relative w-full rounded-xl enabled:cursor-crosshair disabled:cursor-default"
             :disabled="enemy.currentHp <= 0 || !isRoundRunning" @click="handleDamageClick">
             <img :src="enemy.sprites.front" :alt="enemy.displayName" loading="lazy"
-                class="mx-auto aspect-square w-full object-contain cursor-crosshair select-none" :class="enemy.currentHp <= 0 ? 'grayscale' : ''" />
+                class="mx-auto aspect-square w-full object-contain cursor-crosshair select-none"
+                :class="enemy.currentHp <= 0 ? 'grayscale' : ''" />
             <img v-if="enemy.weaponImage && enemy.currentHp > 0" :src="enemy.weaponImage"
                 :alt="`Arme de ${enemy.displayName}`"
                 class="pointer-events-none absolute bottom-0 right-0 transform translate-y-2 translate-x-6 h-1/2 w-full object-contain select-none" />
-
-            <div v-if="enemy.currentHp <= 0" class="absolute inset-0 flex items-center justify-center">
+            <!-- Capture is now auto -->
+            <!-- <div v-if="enemy.currentHp <= 0" class="absolute inset-0 flex items-center justify-center">
                 <ActionButton @click.stop="emit('capture', enemy.instanceId)" label="Capturer"
                     class="rounded-full px-3 py-0.5 text-black" />
-            </div>
+            </div> -->
         </button>
     </div>
 </template>
@@ -78,6 +79,11 @@ function handleDamageClick() {
 
     showHpBarTemporarily()
     emit('damage', props.enemy.instanceId)
+
+    if (props.enemy.currentHp <= 0) {
+        emit('capture', props.enemy.instanceId)
+    }
+
 }
 
 watch(() => props.enemy.currentHp, (currentHp) => {

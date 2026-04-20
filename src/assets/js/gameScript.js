@@ -1,5 +1,11 @@
-import { computed, onUnmounted, ref } from 'vue'
-import { fetchPokemonShinySpriteById } from '../../services/api/pokeAPI'
+import {
+  computed,
+  onUnmounted,
+  ref
+} from 'vue'
+import {
+  fetchPokemonShinySpriteById
+} from '../../services/api/pokeAPI'
 import {
   ensureLegendaryPokemonIds,
   fetchPokemonForRarity,
@@ -7,7 +13,7 @@ import {
 } from './gameSpawn'
 import {
   fetchWeaponsCatalog,
-  getRandomEnemyLoadout,
+  getRandomEnemyWeapon,
   getWeaponImage,
   getWeaponMaxDamage,
 } from '../../services/api/valorantAPI'
@@ -20,7 +26,9 @@ import {
   ROUND_CONFIG,
   WEAPON_CATEGORY_SPAWN_WEIGHTS,
 } from './options'
-import { usePlayerStore } from '../../store/playerStore'
+import {
+  usePlayerStore
+} from '../../store/playerStore'
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
@@ -225,8 +233,10 @@ export function useGame() {
       maxHp,
       currentHp: maxHp,
       weaponId: loadout.weaponId,
-      skinId: loadout.skinId,
-      weaponImage: loadout.image,
+      weaponName: loadout.weaponName,
+      weaponImage: loadout.skinImage || loadout.image,
+      skinId: loadout.skinId || null,
+      skinName: loadout.skinName || loadout.weaponName,
       weaponDamage,
       rarity,
       isRecoiling: false,
@@ -368,7 +378,7 @@ export function useGame() {
       return null
     }
 
-    const loadout = await getRandomEnemyLoadout({
+    const loadout = await getRandomEnemyWeapon({
       allowedCategoryIds: difficultyConfig.enemyCategoryIds,
       categoryWeights: WEAPON_CATEGORY_SPAWN_WEIGHTS,
     })
@@ -576,7 +586,7 @@ export function useGame() {
       }
     }
 
-    const added = playerStore.addPokemonToPokedex(capturedPokemon)
+    const added = playerStore.addPokemonToPokedex(capturedPokemon, capturedPokemon.isShiny)
     if (added) {
       playerStore.addCredits(CREDIT_REWARDS.capture)
     }

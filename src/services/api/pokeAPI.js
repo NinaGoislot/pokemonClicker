@@ -36,7 +36,7 @@ function getSpriteUrls(rawPokemon, isShiny) {
   }
 }
 
-function normalizePokemon(rawPokemon, isShiny) {
+async function normalizePokemon(rawPokemon, isShiny) {
   const stats = rawPokemon.stats.reduce((acc, entry) => {
     const statKey = statToGameKey[entry.stat.name]
     if (statKey) {
@@ -55,12 +55,16 @@ function normalizePokemon(rawPokemon, isShiny) {
   const specialDefense = stats.specialDefense != null ? stats.specialDefense : 50
   const speed = stats.speed != null ? stats.speed : 50
 
+  // Check if this Pokemon is legendary/mythical via species endpoint
+  const isLegendary = await fetchPokemonIsLegendary(rawPokemon.id)
+
   return {
     id: rawPokemon.id,
     name: rawPokemon.name,
     displayName: rawPokemon.name[0].toUpperCase() + rawPokemon.name.slice(1),
     sprites,
     isShiny: Boolean(isShiny),
+    isLegendary: Boolean(isLegendary),
     types,
     stats: {
       hp,
@@ -89,17 +93,13 @@ async function fetchPokemonSpeciesById(id) {
 export async function fetchPokemonById(id, options = {}) {
   const isShiny = Boolean(options.isShiny)
   const rawPokemon = await fetchFromPokeAPI(`/pokemon/${id}`)
-  return normalizePokemon(rawPokemon, isShiny)
+  return await normalizePokemon(rawPokemon, isShiny)
 }
 
 export async function fetchPokemonByName(name, options = {}) {
   const isShiny = Boolean(options.isShiny)
   const rawPokemon = await fetchFromPokeAPI(`/pokemon/${name.toLowerCase()}`)
-  return normalizePokemon(rawPokemon, isShiny)
-}
-
-export async function getPokemonByName(name, options = {}) {
-  return fetchPokemonByName(name, options)
+  return await normalizePokemon(rawPokemon, isShiny)
 }
 
 export async function fetchPokemonShinySpriteById(id) {
@@ -119,46 +119,65 @@ export async function fetchRandomWildPokemons(count = 3) {
   return Promise.all(requests)
 }
 
-let cachedLegendaryIds = null
-let legendaryIdsPromise = null
+let cachedLegendaryIds = null // Cache of legendary Pokemon IDs (array) to avoid repeated API calls      
+let legendaryIdsPromise = null 
 
+/**
+ * Fetch and cache all legendary + mythical Pokemon IDs
+ *
+ * this exists because:
+ * - The /pokemon endpoint does NOT have is_legendary / is_mythical flags (POURQUOI ???)
+ * - We must query /pokemon-species for each Pokemon to check those flags
+ * - We do it once, cache the results, then reuse them everywhere
+ *
+ * Returns: Array of Pokemon IDs that are legendary or mythical
+ */
 export async function fetchLegendaryPokemonIds(limit = 50) {
+  // If we already cached the list, return it immediately
   if (Array.isArray(cachedLegendaryIds)) {
     return cachedLegendaryIds
   }
 
+  // If a fetch is already in progress, reuse that promise so we don't trigger multiple fetches at the same time        
   if (legendaryIdsPromise) {
     return legendaryIdsPromise
   }
 
-  const safeLimit = Math.max(Math.min(Number(limit) || 50, MAX_POKEMON_ID), 1)
+  // Ensure limit is a safe number between 1 and MAX_POKEMON_ID
+  const batchSize = Math.max(Math.min(Number(limit) || 50, MAX_POKEMON_ID), 1) // group of requests at th same time, here 50 mainly
 
+  // Start the fetch and cache the promise
   legendaryIdsPromise = (async () => {
     const legendaryIds = []
 
-    for (let startId = 1; startId <= MAX_POKEMON_ID; startId += safeLimit) {
-      const endId = Math.min(startId + safeLimit - 1, MAX_POKEMON_ID)
-      const batchIds = []
+    // Go through all Pokemon in batch (group of requests) to avoid flooding the API
+    for (let currentId = 1; currentId <= MAX_POKEMON_ID; currentId += batchSize) {
+      const endId = Math.min(currentId + batchSize - 1, MAX_POKEMON_ID)
 
-      for (let id = startId; id <= endId; id += 1) {
-        batchIds.push(id)
+      // Build a list of IDs for this batch
+      const idsToFetch = []
+      for (let id = currentId; id <= endId; id += 1) {
+        idsToFetch.push(id)
       }
 
-      const batchResults = await Promise.all(
-        batchIds.map((id) => fetchPokemonSpeciesById(id).catch(() => null)),
+      // Fetch all species data for this batch in parallel (faster than one-by-one)
+      const speciesResults = await Promise.all(
+        idsToFetch.map((id) => fetchPokemonSpeciesById(id).catch(() => null)),
       )
 
-      for (const entry of batchResults) {
-        if (!entry) {
+      // Check each species: if it's legendary or mythical, remember its ID
+      for (const species of speciesResults) {
+        if (!species) {
           continue
         }
 
-        if (entry.is_legendary || entry.is_mythical) {
-          legendaryIds.push(entry.id)
+        if (species.is_legendary || species.is_mythical) {
+          legendaryIds.push(species.id)
         }
       }
     }
 
+    // Store the result in cache
     cachedLegendaryIds = legendaryIds
     return legendaryIds
   })()
@@ -166,6 +185,21 @@ export async function fetchLegendaryPokemonIds(limit = 50) {
   try {
     return await legendaryIdsPromise
   } finally {
+    // Clear the promise tracker so the next full scan can start fresh if cache expires
     legendaryIdsPromise = null
   }
+}
+
+export async function fetchPokemonIsLegendary(id) {
+  try {
+    const species = await fetchPokemonSpeciesById(id)
+    return Boolean(species.is_legendary || species.is_mythical)
+  } catch (error) {
+    console.error(`Impossible de verifier si le pokemon ${id} est legendaire`, error)
+    return false
+  }
+}
+
+export async function getPokemonByName(name, options = {}) {
+  return fetchPokemonByName(name, options)
 }

@@ -33,7 +33,13 @@
                         <p class="mt-2 text-lg font-semibold text-light">{{ weapon.name }}</p>
                         <p class="text-sm text-disabled">Prix: {{ weapon.price }} crédits</p>
                         <p class="text-xs text-disabled mt-1">Possédées: {{ getOwnedWeaponQuantity(weapon.id) }}</p>
-                        <ActionButton class="mt-3 w-full" label="Acheter" @click="buyWeapon(weapon)" />
+                        <ActionButton 
+                            class="mt-3 w-full" 
+                            label="Acheter" 
+                            @click="buyWeapon(weapon)"
+                            :disabled="getOwnedWeaponQuantity(weapon.id) >= 99"
+                        />
+                        <p v-if="feedbacks[weapon.id]" class="mt-2 text-xs text-slate-400">{{ feedbacks[weapon.id] }}</p>
                     </BaseCard>
                 </div>
             </BaseCard>
@@ -64,9 +70,10 @@
                 </div>
             </BaseCard>
 
-            <p v-if="feedback" class="mt-3 text-sm text-slate-700">{{ feedback }}</p>
+            <p v-if="globalFeedback" class="mt-3 text-sm text-slate-700">{{ globalFeedback }}</p>
         </div>
     </div>
+    
 </template>
 
 <script setup>
@@ -83,7 +90,8 @@ const activeTab = ref('weapons')
 const shopWeapons = ref([])
 const isLoadingWeapons = ref(false)
 const isLoadingSkins = ref(false)
-const feedback = ref('')
+const feedbacks = ref({}) // feedback per weapon ID
+const globalFeedback = ref('') // for skin feedback
 const nowTick = ref(Date.now())
 let ticker = null
 
@@ -108,7 +116,7 @@ function isSkinOwned(skin) {
         return false
     }
 
-    return weapon.skins.includes(skin.id)
+    return Array.isArray(weapon.skins) && weapon.skins.some((s) => s.id === skin.id)
 }
 
 async function loadWeapons() {
@@ -142,16 +150,21 @@ function buyWeapon(weapon) {
     const result = playerStore.buyWeapon(weapon)
 
     if (!result.success) {
-        if (result.reason === 'not-enough-credits') {
-            feedback.value = 'Crédits insuffisants.'
+        if (result.reason === 'max-quantity-reached') {
+            feedbacks.value[weapon.id] = `You have reached the maximum of 99 units.`
             return
         }
 
-        feedback.value = 'Achat impossible.'
+        if (result.reason === 'not-enough-credits') {
+            feedbacks.value[weapon.id] = 'Crédits insuffisants.'
+            return
+        }
+
+        feedbacks.value[weapon.id] = 'Achat impossible.'
         return
     }
 
-    feedback.value = `${weapon.name} ajoutée. Quantité: ${getOwnedWeaponQuantity(weapon.id)}.`
+    feedbacks.value[weapon.id] = `${weapon.name} ajoutée. Quantité: ${result.quantity}/99.`
 }
 
 function buySkin(skin) {
@@ -159,25 +172,25 @@ function buySkin(skin) {
 
     if (!result.success) {
         if (result.reason === 'weapon-not-owned') {
-            feedback.value = 'Tu dois d\'abord posséder l\'arme de ce skin.'
+            globalFeedback.value = 'Tu dois d\'abord posséder l\'arme de ce skin.'
             return
         }
 
         if (result.reason === 'not-enough-credits') {
-            feedback.value = 'Crédits insuffisants.'
+            globalFeedback.value = 'Crédits insuffisants.'
             return
         }
 
         if (result.reason === 'already-owned') {
-            feedback.value = 'Skin déjà possédé.'
+            globalFeedback.value = 'Skin déjà possédé.'
             return
         }
 
-        feedback.value = 'Achat impossible.'
+        globalFeedback.value = 'Achat impossible.'
         return
     }
 
-    feedback.value = `${skin.name} ajouté à ton inventaire.`
+    globalFeedback.value = `${skin.name} ajouté à ton inventaire.`
 }
 
 onMounted(async () => {

@@ -1,56 +1,35 @@
+import {
+  randomInt,
+  shuffleArray,
+  toNumber
+} from '@/utils/helpers'
+
 const API_BASE_URL = 'https://valorant-api.com/v1'
 const SHOP_SKIN_REFRESH_MS = 60 * 60 * 1000
-const SKIN_SELL_PRICE_MULTIPLIER = 2 // Pour pas que les skins soient trop faciles  à obtenir
+const SKIN_SELL_PRICE_MULTIPLIER = 1.5 // Pour pas que les skins soient trop faciles  à obtenir
 
 const CATEGORY_NAMES = {
   1: ['classic', 'shorty', 'frenzy', 'ghost', 'stinger', 'spectre', 'bucky', 'ares', 'judge'],
-  2: ['odin', 'phantom', 'sheriff', 'marshal', 'bulldog', 'guardian'],
-  3: ['outlaw', 'vandal'],
+  2: ['odin', 'sheriff', 'marshal', 'bulldog'],
+  3: ['outlaw', 'vandal', 'phantom', 'guardian'],
   4: ['operator'],
 }
 
 const FALLBACK_CLASSIC = {
-  id: '42da8ccc-40d5-affc-beec-15aa47b42eda',
+  id: '24aee897-4cdc-b0fd-e596-1ba90fa6d1b2',
   name: 'Classic',
-  image: 'https://media.valorant-api.com/weapons/42da8ccc-40d5-affc-beec-15aa47b42eda/displayicon.png',
+  image: 'https://media.valorant-api.com/weapons/29a0cfab-485b-f5d5-779a-b59f85e204a8/displayicon.png',
   maxDamage: 78,
   categoryId: 1,
   price: 0,
-  defaultSkinId: '0fdb6f8d-46b8-b3b7-a7e3-83b5a153da6a',
-  skins: [{
-    id: '0fdb6f8d-46b8-b3b7-a7e3-83b5a153da6a',
-    weaponId: '42da8ccc-40d5-affc-beec-15aa47b42eda',
-    name: 'Classic Standard',
-    image: 'https://media.valorant-api.com/weaponskins/0fdb6f8d-46b8-b3b7-a7e3-83b5a153da6a/displayicon.png',
-    price: 400,
-  }, ],
 }
 
-let cachedCatalog = []
-let cachedWeaponMap = {}
-let cachedSkinMap = {}
+let weaponCatalogList = []
+let weaponByIdMap = {}
+let skinByIdMap = {}
 let catalogPromise = null
 
-function toNumber(value) {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min
-}
-
-function shuffleArray(values) {
-  const copy = [...values]
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = randomInt(0, i)
-    const temp = copy[i]
-    copy[i] = copy[j]
-    copy[j] = temp
-  }
-  return copy
-}
-
+// ------------------- Getters ------------------- 
 function getRawImage(entry) {
   if (!entry || typeof entry !== 'object') {
     return ''
@@ -60,15 +39,20 @@ function getRawImage(entry) {
     return entry.displayIcon
   }
 
-  if (entry.fullRender) {
-    return entry.fullRender
-  }
-
-  if (entry.killStreamIcon) {
-    return entry.killStreamIcon
-  }
-
   return ''
+}
+
+function getWeaponCategoryId(weaponName) {
+  const lowerName = (weaponName || '').toLowerCase()
+
+  for (const categoryId of Object.keys(CATEGORY_NAMES)) {
+    const names = CATEGORY_NAMES[categoryId]
+    if (names.includes(lowerName)) {
+      return Number(categoryId)
+    }
+  }
+
+  return 1
 }
 
 function getMaxWeaponDamage(weaponStats) {
@@ -89,6 +73,189 @@ function getMaxWeaponDamage(weaponStats) {
   return Math.max(Math.round(maxDamage), 1)
 }
 
+export function getWeaponMaxDamage(weaponId) {
+  const weapon = getWeaponById(weaponId)
+  return weapon ? weapon.maxDamage : 25
+}
+
+export function getWeaponsCatalog() {
+  return weaponCatalogList
+}
+
+export function getWeaponById(weaponId) {
+  if (!weaponId) {
+    return null
+  }
+
+  return weaponByIdMap[weaponId] || null
+}
+
+export function getWeaponSkinById(skinId) {
+  if (!skinId) {
+    return null
+  }
+
+  return skinByIdMap[skinId] || null
+}
+
+export function getWeaponImage(weaponId, skinId) {
+  if (skinId) {
+    const skin = getWeaponSkinById(skinId)
+    if (skin && skin.image) {
+      return skin.image
+    }
+  }
+
+  const weapon = getWeaponById(weaponId)
+  if (weapon && weapon.image) {
+    return weapon.image
+  }
+
+  return FALLBACK_CLASSIC.image
+}
+
+export function getClassicWeapon() {
+  // const catalogClassic = weaponCatalogList.find((weapon) => weapon.name === 'Classic')
+  // const classic = catalogClassic || FALLBACK_CLASSIC
+
+  return {
+    id: FALLBACK_CLASSIC.id,
+    name: FALLBACK_CLASSIC.name,
+    image: FALLBACK_CLASSIC.image,
+    maxDamage: FALLBACK_CLASSIC.maxDamage,
+    categoryId: FALLBACK_CLASSIC.categoryId,
+    price: FALLBACK_CLASSIC.price,
+  }
+}
+
+export async function getRandomEnemyWeapon(options = {}) {
+  const catalog = await fetchWeaponsCatalog()
+
+  const allowedCategoryIds = Array.isArray(options.allowedCategoryIds) && options.allowedCategoryIds.length ?
+    options.allowedCategoryIds : [1, 2, 3, 4]
+  const categoryWeights = options.categoryWeights || {
+    1: 0.6,
+    2: 0.25,
+    3: 0.1,
+    4: 0.05,
+  }
+
+  const chosenCategory = pickWeightedCategory(allowedCategoryIds, categoryWeights)
+
+  let pool = catalog.filter((weapon) => weapon.maxDamage > 0 && weapon.categoryId === chosenCategory)
+  if (!pool.length) {
+    pool = catalog.filter((weapon) => weapon.maxDamage > 0)
+  }
+
+  const weapon = pool.length ? pool[randomInt(0, pool.length - 1)] : FALLBACK_CLASSIC
+
+  // Pick a random skin from available skins for this weapon
+  let skin = null
+  if (Array.isArray(weapon.skins) && weapon.skins.length > 0) {
+    skin = weapon.skins[randomInt(0, weapon.skins.length - 1)]
+  }
+
+  return {
+    weaponId: weapon.id,
+    weaponName: weapon.name,
+    image: weapon.image,
+    skinId: skin ? skin.id : null,
+    skinImage: skin ? skin.image : weapon.image,
+    skinName: skin ? skin.name : weapon.name,
+  }
+}
+
+export function getShopSkinRefreshMs() {
+  return SHOP_SKIN_REFRESH_MS
+}
+
+export async function getBaseSkinImageByName(weaponName) {
+  await fetchWeaponsCatalog() // Ensure catalog is loaded before trying to get skin image   
+  console.log(`[getBaseSkinImageByName] Looking for base skin image for weapon ${weaponName}`);  
+  const weapon = weaponCatalogList.find((weapon) => weapon.name === weaponName)
+  // console.log(`[getBaseSkinImageByName] Weapon found : `, weapon);
+  console.log(`[getBaseSkinImageByName] Weapon Image: `, weapon.image);
+  return weapon ? weapon.image : ''
+}
+
+
+// ------------------- Fetchers ------------------- 
+async function fetchFromValorantAPI(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`)
+  if (!response.ok) {
+    throw new Error(`ValorantAPI request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function fetchWeaponsCatalog() {
+  if (weaponCatalogList.length) {
+    return weaponCatalogList
+  }
+
+  if (catalogPromise) {
+    return catalogPromise
+  }
+
+  console.log('[fetchWeaponsCatalog]Fetching weapons catalog from Valorant API...')
+  catalogPromise = fetchFromValorantAPI('/weapons')
+    .then((payload) => {
+      console.log('[fetchWeaponsCatalog] Weapons catalog fetched successfully from Valorant API', payload)
+      const rawWeapons = Array.isArray(payload && payload.data) ? payload.data : []
+      buildCatalog(rawWeapons)
+      return weaponCatalogList
+    })
+    .catch((error) => {
+      console.error('[fetchWeaponsCatalog] Impossible de charger le catalogue Valorant', error)
+      buildCatalog([FALLBACK_CLASSIC])
+      return weaponCatalogList
+    })
+    .finally(() => {
+      catalogPromise = null
+    })
+
+  return catalogPromise
+}
+
+export async function fetchShopWeapons() {
+  //ALL buyable weapon, triées par prix
+  const catalog = await fetchWeaponsCatalog()
+  return catalog
+    .sort((a, b) => a.price - b.price)
+}
+
+export async function fetchRandomShopSkins(count = 4) {
+  // 4 randoms skins
+  const catalog = await fetchWeaponsCatalog()
+
+  const candidates = []
+  for (const weapon of catalog) {
+    for (const skin of weapon.skins) {
+      // Skip skins that are just basic images (no id field or malformed)
+      if (!skin.id || typeof skin.id !== 'string') {
+        continue
+      }
+      candidates.push({
+        id: skin.id,
+        name: skin.name,
+        image: skin.image,
+        weaponId: weapon.id,
+        weaponName: weapon.name,
+        price: skin.price,
+      })
+    }
+  }
+
+  if (!candidates.length) {
+    return []
+  }
+
+  return shuffleArray(candidates).slice(0, count)
+}
+
+// ------------------- Normalizers -------------------
+
 function normalizeSkin(rawSkin, weaponId, fallbackPrice) {
   return {
     id: rawSkin.uuid,
@@ -101,42 +268,42 @@ function normalizeSkin(rawSkin, weaponId, fallbackPrice) {
 
 function normalizeWeapon(rawWeapon) {
   const weaponName = rawWeapon.displayName || 'Arme'
+  const weaponImage = getRawImage(rawWeapon)
   const maxDamage = getMaxWeaponDamage(rawWeapon.weaponStats)
+
   const basePrice = toNumber(rawWeapon.shopData && rawWeapon.shopData.cost)
-  const weaponPrice = basePrice > 0 ? basePrice : Math.max(maxDamage * 15, 500)
+  const weaponPrice = basePrice > 0 ? basePrice : 2000
 
   const rawSkins = Array.isArray(rawWeapon.skins) ? rawWeapon.skins : []
-  const skinPrice = Math.max(Math.round(weaponPrice * 0.35), 200)
-  const skins = rawSkins
-    .map((rawSkin) => normalizeSkin(rawSkin, rawWeapon.uuid, skinPrice))
-    .filter((skin) => skin.image)
 
-  const defaultSkinId = skins.length ? skins[0].id : ''
+  // const skinPrice = Math.max(Math.round(weaponPrice * 0.35), 200)
+  // const skins = rawSkins
+  //   .map((rawSkin) => normalizeSkin(rawSkin, rawWeapon.uuid, skinPrice))
+  //   .filter((skin) => skin.image)
+  //   .filter((skin) => shouldIncludeSkin(skin))
+
+  const skins = rawSkins
+    .map((rawSkin) => ({
+      id: rawSkin.uuid,
+      name: rawSkin.displayName || 'Skin',
+      image: getRawImage(rawSkin),
+      price: Math.max(Math.round(weaponPrice * SKIN_SELL_PRICE_MULTIPLIER), 1000),
+    }))
+    .filter((skin) => skin.image)
+    .filter((skin) => shouldIncludeSkin(skin))
 
   return {
     id: rawWeapon.uuid,
     name: weaponName,
-    image: getRawImage(rawWeapon),
+    image: weaponImage,
     maxDamage,
     categoryId: getWeaponCategoryId(weaponName),
     price: weaponName === 'Classic' ? 0 : Math.round(weaponPrice),
-    defaultSkinId,
     skins,
   }
 }
 
-function getWeaponCategoryId(weaponName) {
-  const lowerName = (weaponName || '').toLowerCase()
-
-  for (const categoryId of Object.keys(CATEGORY_NAMES)) {
-    const names = CATEGORY_NAMES[categoryId]
-    if (names.includes(lowerName)) {
-      return Number(categoryId)
-    }
-  }
-
-  return 1
-}
+// ------------------- Actions -------------------
 
 function buildCatalog(rawWeapons) {
   const normalized = rawWeapons
@@ -158,144 +325,28 @@ function buildCatalog(rawWeapons) {
     }
   }
 
-  cachedCatalog = normalized
-  cachedWeaponMap = weaponMap
-  cachedSkinMap = skinMap
+  weaponCatalogList = normalized
+  weaponByIdMap = weaponMap
+  skinByIdMap = skinMap
+
+  console.log('[buildCatalog] Weapon catalog :', weaponCatalogList)       
 }
 
-async function fetchFromValorantAPI(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`)
-  if (!response.ok) {
-    throw new Error(`ValorantAPI request failed: ${response.status}`)
+// Filter out problematic skins: Standard variants and Random Favorite that don't have proper display
+function shouldIncludeSkin(skin) {
+  const name = skin.name || ''
+
+  // Skip "Random Favorite Skin"
+  if (name === 'Random Favorite Skin') {
+    return false
   }
 
-  return response.json()
-}
-
-export async function fetchWeaponsCatalog() {
-  if (cachedCatalog.length) {
-    return cachedCatalog
+  // Skip "Standard" skins
+  if (name.startsWith('Standard ')) {
+    return false
   }
 
-  if (catalogPromise) {
-    return catalogPromise
-  }
-
-  catalogPromise = fetchFromValorantAPI('/weapons')
-    .then((payload) => {
-      const rawWeapons = Array.isArray(payload && payload.data) ? payload.data : []
-      buildCatalog(rawWeapons)
-      return cachedCatalog
-    })
-    .catch((error) => {
-      console.error('Impossible de charger le catalogue Valorant', error)
-      buildCatalog([FALLBACK_CLASSIC])
-      return cachedCatalog
-    })
-    .finally(() => {
-      catalogPromise = null
-    })
-
-  return catalogPromise
-}
-
-export function getWeaponsCatalog() {
-  return cachedCatalog
-}
-
-export function getWeaponById(weaponId) {
-  if (!weaponId) {
-    return null
-  }
-
-  return cachedWeaponMap[weaponId] || null
-}
-
-export function getWeaponMaxDamage(weaponId) {
-  const weapon = getWeaponById(weaponId)
-  if (!weapon) {
-    return FALLBACK_CLASSIC.maxDamage
-  }
-
-  return weapon.maxDamage
-}
-
-export function getWeaponSkinById(skinId) {
-  if (!skinId) {
-    return null
-  }
-
-  return cachedSkinMap[skinId] || null
-}
-
-export function getWeaponDefaultSkinId(weaponId) {
-  const weapon = getWeaponById(weaponId)
-  if (!weapon) {
-    return ''
-  }
-
-  return weapon.defaultSkinId || ''
-}
-
-export function getWeaponImage(weaponId, skinId) {
-  if (skinId) {
-    const skin = getWeaponSkinById(skinId)
-    if (skin && skin.image) {
-      return skin.image
-    }
-  }
-
-  const weapon = getWeaponById(weaponId)
-  if (weapon && weapon.image) {
-    return weapon.image
-  }
-
-  return FALLBACK_CLASSIC.image
-}
-
-export function getClassicWeapon() {
-  const catalogClassic = cachedCatalog.find((weapon) => weapon.name === 'Classic')
-  const classic = catalogClassic || FALLBACK_CLASSIC
-
-  return {
-    id: classic.id,
-    name: classic.name,
-    skins: classic.defaultSkinId ? [classic.defaultSkinId] : [],
-  }
-}
-
-export async function fetchShopWeapons() {
-  const catalog = await fetchWeaponsCatalog()
-  return catalog
-    .filter((weapon) => weapon.price > 0 && weapon.name !== 'Classic')
-    .sort((a, b) => a.price - b.price)
-}
-
-export async function fetchRandomShopSkins(count = 4) {
-  const catalog = await fetchWeaponsCatalog()
-
-  const candidates = []
-  for (const weapon of catalog) {
-    for (const skin of weapon.skins) {
-      if (skin.id === weapon.defaultSkinId) {
-        continue
-      }
-      candidates.push({
-        id: skin.id,
-        name: skin.name,
-        image: skin.image,
-        weaponId: weapon.id,
-        weaponName: weapon.name,
-        price: skin.price,
-      })
-    }
-  }
-
-  if (!candidates.length) {
-    return []
-  }
-
-  return shuffleArray(candidates).slice(0, count)
+  return true
 }
 
 function pickWeightedCategory(allowedCategoryIds, categoryWeights) {
@@ -326,39 +377,4 @@ function pickWeightedCategory(allowedCategoryIds, categoryWeights) {
   }
 
   return filteredCategoryIds[filteredCategoryIds.length - 1]
-}
-
-export async function getRandomEnemyLoadout(options = {}) {
-  const catalog = await fetchWeaponsCatalog()
-
-  const allowedCategoryIds = Array.isArray(options.allowedCategoryIds) && options
-    .allowedCategoryIds.length ?
-    options.allowedCategoryIds : [1, 2, 3, 4]
-  const categoryWeights = options.categoryWeights || {
-    1: 0.6,
-    2: 0.25,
-    3: 0.1,
-    4: 0.05,
-  }
-
-  const chosenCategory = pickWeightedCategory(allowedCategoryIds, categoryWeights)
-
-  let pool = catalog.filter((weapon) => weapon.maxDamage > 0 && weapon.categoryId ===
-    chosenCategory)
-  if (!pool.length) {
-    pool = catalog.filter((weapon) => weapon.maxDamage > 0)
-  }
-
-  const weapon = pool.length ? pool[randomInt(0, pool.length - 1)] : FALLBACK_CLASSIC
-  const skinId = weapon.defaultSkinId || ''
-
-  return {
-    weaponId: weapon.id,
-    skinId,
-    image: getWeaponImage(weapon.id, skinId),
-  }
-}
-
-export function getShopSkinRefreshMs() {
-  return SHOP_SKIN_REFRESH_MS
 }

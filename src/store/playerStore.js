@@ -16,21 +16,16 @@ import {
 import {
   fetchRandomShopSkins,
   getClassicWeapon,
-  getWeaponDefaultSkinId,
   getShopSkinRefreshMs,
+  getBaseSkinImageByName,
+  getWeaponById,
+  fetchWeaponsCatalog,
 } from '@/services/api/valorantAPI'
 import {
   getPokemonByName
 } from '@/services/api/pokeAPI'
 
-function cloneWeaponInventoryEntry(weapon) {
-  return {
-    id: weapon.id,
-    name: weapon.name,
-    skins: Array.isArray(weapon.skins) ? [...weapon.skins] : [],
-    quantity: Math.max(Number(weapon.quantity) || 1, 1),
-  }
-}
+
 
 export const usePlayerStore = defineStore('player', {
   state: () => ({
@@ -44,6 +39,7 @@ export const usePlayerStore = defineStore('player', {
     weaponInventory: [],
     shopSkins: [],
     shopSkinsResetAt: 0,
+    shinyDexCount: 0,
     isLoaded: false,
     _pendingPokemon: null,
   }),
@@ -71,65 +67,33 @@ export const usePlayerStore = defineStore('player', {
       return this.weaponInventory.find((weapon) => weapon.id === weaponId) || null
     },
 
+    findOwnedWeaponByName(weaponName) {
+      return this.weaponInventory.find((weapon) => weapon.name === weaponName) || null
+    },
+
     hasPokemonLoadout(pokemonEntry) {
+      // A Pokemon can be added to team if it has a weapon loadout (weapon + skin) assigned
       return Boolean(pokemonEntry && pokemonEntry.weaponId && pokemonEntry.skinId)
     },
 
     getWeaponAssignedCount(weaponId, excludedPokemonId = null) {
+      // Count how many Pokemon in player's pokedex are currently assigned to this weapon, excluding a specific Pokemon ID if provided (used for swap scenarios)
       return this.pokedex.filter(
         (pokemon) => pokemon.weaponId === weaponId && pokemon.pokemonId !== excludedPokemonId,
       ).length
     },
 
-    getWeaponAvailableUnits(weaponId, excludedPokemonId = null) {
-      const weapon = this.findOwnedWeaponById(weaponId)
+    getWeaponAvailableUnits(weaponName, excludedPokemonId = null) {
+      const weapon = this.findOwnedWeaponByName(weaponName)
       if (!weapon) {
         return 0
       }
 
       const quantity = Math.max(Number(weapon.quantity) || 1, 1)
-      const assigned = this.getWeaponAssignedCount(weaponId, excludedPokemonId)
+      const assigned = this.getWeaponAssignedCount(weapon.id, excludedPokemonId)
       return Math.max(quantity - assigned, 0)
     },
-
-    ensureClassicWeaponInInventory() {
-      const classic = getClassicWeapon()
-      const existing = this.findOwnedWeaponById(classic.id)
-
-      if (!existing) {
-        this.weaponInventory.push(cloneWeaponInventoryEntry(classic))
-        return
-      }
-
-      existing.quantity = Math.max(Number(existing.quantity) || 1, 1)
-
-      if (!Array.isArray(existing.skins)) {
-        existing.skins = []
-      }
-
-      for (const skinId of classic.skins) {
-        if (!existing.skins.includes(skinId)) {
-          existing.skins.push(skinId)
-        }
-      }
-    },
-
-    ensureDefaultSkinInOwnedWeapon(weaponId) {
-      const weapon = this.findOwnedWeaponById(weaponId)
-      if (!weapon) {
-        return
-      }
-
-      if (!Array.isArray(weapon.skins)) {
-        weapon.skins = []
-      }
-
-      const defaultSkinId = getWeaponDefaultSkinId(weaponId)
-      if (defaultSkinId && !weapon.skins.includes(defaultSkinId)) {
-        weapon.skins.unshift(defaultSkinId)
-      }
-    },
-
+    
     loadFromStorage() {
       if (this.isLoaded) {
         return
@@ -137,7 +101,6 @@ export const usePlayerStore = defineStore('player', {
 
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) {
-        this.ensureClassicWeaponInInventory()
         this.isLoaded = true
         return
       }
@@ -156,29 +119,25 @@ export const usePlayerStore = defineStore('player', {
 
         // Active pokemon must always stay synced with a slot from activeTeamIds
         const parsedActivePokemonId = Number((parsed && parsed.activePokemonId) || 0)
-        if (Number.isFinite(parsedActivePokemonId) && this.activeTeamIds.includes(
-            parsedActivePokemonId)) {
+        if (Number.isFinite(parsedActivePokemonId) && this.activeTeamIds.includes(parsedActivePokemonId)) {
           this.activePokemonId = parsedActivePokemonId
         } else {
           this.activePokemonId = this.activeTeamIds.find((id) => id !== null) || null
         }
 
-        // We normalize old saves then force default skin presence for backward compatibility.
         this.weaponInventory = normalizeWeaponInventory(parsed && parsed.weaponInventory)
-        for (const ownedWeapon of this.weaponInventory) {
-          this.ensureDefaultSkinInOwnedWeapon(ownedWeapon.id)
-        }
         this.shopSkins = Array.isArray(parsed && parsed.shopSkins) ? parsed.shopSkins : []
 
         const parsedResetAt = Number(parsed && parsed.shopSkinsResetAt)
         this.shopSkinsResetAt = Number.isFinite(parsedResetAt) ? parsedResetAt : 0
+
+        const parsedShinyDexCount = Number(parsed && parsed.shinyDexCount)
+        this.shinyDexCount = Number.isFinite(parsedShinyDexCount) ? parsedShinyDexCount : 0
       } catch (error) {
         console.error('Impossible de charger le player depuis le local storage', error)
         localStorage.removeItem(STORAGE_KEY)
       } finally {
-        this.ensureClassicWeaponInInventory()
         this.isLoaded = true
-        this.saveToStorage()
       }
     },
 
@@ -194,10 +153,19 @@ export const usePlayerStore = defineStore('player', {
         },
         activePokemonId: this.activePokemonId,
         activeTeamIds: [...this.activeTeamIds],
-        weaponInventory: this.weaponInventory.map((weapon) => cloneWeaponInventoryEntry(
-          weapon)),
+        weaponInventory: this.weaponInventory.map((w) => ({
+          id: w.id,
+          name: w.name,
+          quantity: Math.max(Number(w.quantity) || 1, 1),
+          skins: Array.isArray(w.skins) ? w.skins.map((skin) => ({
+            id: skin.id,
+            nom: skin.nom,
+            image: skin.image,
+          })) : [],
+        })),
         shopSkins: [...this.shopSkins],
         shopSkinsResetAt: this.shopSkinsResetAt,
+        shinyDexCount: this.shinyDexCount,
         pokedex: this.pokedex.map((entry) => ({
           pokemonId: entry.pokemonId,
           name: entry.name,
@@ -227,7 +195,12 @@ export const usePlayerStore = defineStore('player', {
       this.weaponInventory = []
       this.shopSkins = []
       this.shopSkinsResetAt = 0
-      this.ensureClassicWeaponInInventory()
+      this.shinyDexCount = 0
+
+      // Give player the Classic weapon as starting weapon
+      const classic = getClassicWeapon()
+      this.giveWeaponToPlayer(classic)
+
       this.saveToStorage()
     },
 
@@ -271,63 +244,30 @@ export const usePlayerStore = defineStore('player', {
       return loss
     },
 
-    addPokemonToPokedex(pokemon) {
-      const entry = normalizePokedexFromStorage([pokemon])[0] || null
-      if (!entry) {
-        return null
-      }
-
-      entry.weaponId = null
-      entry.skinId = null
-
-      const existing = this.findPokedexEntryById(entry.pokemonId)
-      if (existing) {
-        // Overwrite stale data with the latest fetched version
-        existing.name = entry.name
-        existing.spriteFront = entry.spriteFront
-        existing.isShiny = entry.isShiny
-        existing.isLegendary = entry.isLegendary
-        existing.baseAttack = entry.baseAttack
-        existing.baseHp = entry.baseHp
-        existing.types = [...entry.types]
-        existing.stats = {
-          ...entry.stats
-        }
-
-        this.saveToStorage()
-        return existing
-      }
-
-      this.pokedex.push(entry)
-      this.saveToStorage()
-      return entry
-    },
-
-    setPokemonWeaponLoadout(pokemonId, weaponId, skinId) {
+    setPokemonWeaponLoadout(pokemonId, weaponName, skinId) {
       const entry = this.findPokedexEntryById(pokemonId)
       if (!entry) {
         return false
       }
 
-      const weapon = this.findOwnedWeaponById(weaponId)
+      const weapon = this.findOwnedWeaponByName(weaponName)
       if (!weapon) {
         return false
       }
 
-      this.ensureDefaultSkinInOwnedWeapon(weaponId)
-      const defaultSkinId = getWeaponDefaultSkinId(weaponId)
-      const canUseSkin = Array.isArray(weapon.skins) && weapon.skins.includes(skinId)
-      if (!canUseSkin && skinId !== defaultSkinId) {
+      // Check if skin exists in weapon.skins
+      const canUseSkin = Array.isArray(weapon.skins) && weapon.skins.some((s) => s.id === skinId)
+      if (!canUseSkin) {
         return false
       }
 
-      // Exclude current pokemon so reassignment doesn't consume an extra weapon unit.
-      const availableUnits = this.getWeaponAvailableUnits(weaponId, entry.pokemonId)
+      // Exclude current pokemon so reassignment doesn't consume an extra weapon unit
+      const availableUnits = this.getWeaponAvailableUnits(weapon.name, entry.pokemonId)
       if (availableUnits <= 0) {
         return false
       }
 
-      entry.weaponId = weaponId
+      entry.weaponId = weapon.id
       entry.skinId = skinId
       this.saveToStorage()
       return true
@@ -347,76 +287,53 @@ export const usePlayerStore = defineStore('player', {
 
     buyWeapon(weapon) {
       if (!weapon || !weapon.id) {
-        return {
-          success: false,
-          reason: 'invalid'
-        }
+        return { success: false, reason: 'invalid' }
       }
 
-      if (!this.spendCredits(weapon.price)) {
-        return {
-          success: false,
-          reason: 'not-enough-credits'
-        }
-      }
-
+      // Check quantity limit before spending credits
       const existing = this.findOwnedWeaponById(weapon.id)
-      if (existing) {
-        existing.quantity = Math.max(Number(existing.quantity) || 1, 1) + 1
-      } else {
-        const skins = weapon.defaultSkinId ? [weapon.defaultSkinId] : []
-        this.weaponInventory.push({
-          id: weapon.id,
-          name: weapon.name,
-          skins,
-          quantity: 1,
-        })
+      if (existing && existing.quantity >= 99) {
+        return { success: false, reason: 'max-quantity-reached' }
       }
 
-      this.ensureDefaultSkinInOwnedWeapon(weapon.id)
+      // Deduct credits
+      if (!this.spendCredits(weapon.price)) {
+        return { success: false, reason: 'not-enough-credits' }
+      }
+
+      // Add weapon to inventory
+      const result = this.giveWeaponToPlayer(weapon)
       this.saveToStorage()
-
-      return {
-        success: true
-      }
+      return result
     },
 
     buySkin(skin) {
       if (!skin || !skin.id || !skin.weaponId) {
-        return {
-          success: false,
-          reason: 'invalid'
-        }
+        return { success: false, reason: 'invalid' }
       }
 
       const weapon = this.findOwnedWeaponById(skin.weaponId)
       if (!weapon) {
-        return {
-          success: false,
-          reason: 'weapon-not-owned'
-        }
+        return { success: false, reason: 'weapon-not-owned' }
       }
 
-      if (weapon.skins.includes(skin.id)) {
-        return {
-          success: false,
-          reason: 'already-owned'
-        }
+      // Check if skin already owned
+      if (weapon.skins.some((s) => s.id === skin.id)) {
+        return { success: false, reason: 'already-owned' }
       }
 
       if (!this.spendCredits(skin.price)) {
-        return {
-          success: false,
-          reason: 'not-enough-credits'
-        }
+        return { success: false, reason: 'not-enough-credits' }
       }
 
-      weapon.skins.push(skin.id)
+      weapon.skins.push({
+        id: skin.id,
+        nom: skin.name,
+        image: skin.image,
+      })
       this.saveToStorage()
 
-      return {
-        success: true
-      }
+      return { success: true }
     },
 
     async refreshShopSkinsIfNeeded(forceRefresh = false) {
@@ -431,7 +348,35 @@ export const usePlayerStore = defineStore('player', {
       this.shopSkins = skins
       this.shopSkinsResetAt = now + getShopSkinRefreshMs()
       this.saveToStorage()
-      return this.shopSkins
+      return skins
+    },
+
+    confirmSwap(slotIndex) {
+      if (!this._pendingPokemon) {
+        return false
+      }
+
+      if (slotIndex < 0 || slotIndex >= ACTIVE_TEAM_SIZE) {
+        return false
+      }
+
+      if (!this.hasPokemonLoadout(this._pendingPokemon)) {
+        return false
+      }
+
+      const newPokemonId = this._pendingPokemon.pokemonId
+      removeDuplicateInTeam(this.activeTeamIds, newPokemonId, slotIndex)
+
+      const replacedPokemonId = this.activeTeamIds[slotIndex]
+      this.activeTeamIds[slotIndex] = newPokemonId
+
+      if (this.activePokemonId === null || this.activePokemonId === replacedPokemonId) {
+        this.activePokemonId = newPokemonId
+      }
+
+      this._pendingPokemon = null
+      this.saveToStorage()
+      return true
     },
 
     setActivePokemon(pokedexId) {
@@ -483,6 +428,67 @@ export const usePlayerStore = defineStore('player', {
       return true
     },
 
+    giveWeaponToPlayer(weapon) {
+      // Centralized function to add a weapon to player inventory
+      if (!weapon || !weapon.id || !weapon.name) {
+        console.warn('Invalid weapon data, cannot add to player inventory', weapon);
+        return { success: false, reason: 'invalid' }
+      }
+
+      const existing = this.findOwnedWeaponByName(weapon.name)
+      if (existing) {
+        // Weapon already owned: increment quantity
+        existing.quantity += 1
+        console.log(`Weapon ${weapon.name} already owned, incrementing quantity to ${existing.quantity}`);
+      } else {
+        // New weapon: add with only default skin (async)
+        this.addWeaponToCollection(weapon);
+      }
+
+      this.saveToStorage()
+      return { success: true, quantity: this.findOwnedWeaponByName(weapon.name).quantity }
+    },
+
+  
+    
+    // ---------------- ADDERs ----------------
+    addPokemonToPokedex(pokemon, isShiny = false) {
+      const entry = normalizePokedexFromStorage([pokemon])[0] || null
+      if (!entry) {
+        return null
+      }
+
+      entry.weaponId = null
+      entry.skinId = null
+
+      const existing = this.findPokedexEntryById(entry.pokemonId)
+      if (existing) {
+        // Overwrite stale data with the latest fetched version
+        existing.name = entry.name
+        existing.spriteFront = entry.spriteFront
+        existing.isShiny = isShiny
+        existing.isLegendary = entry.isLegendary
+        existing.baseAttack = entry.baseAttack
+        existing.baseHp = entry.baseHp
+        existing.types = [...entry.types]
+        existing.stats = {
+          ...entry.stats
+        }
+
+        this.saveToStorage()
+        return existing
+      }
+
+      // New Pokemon capture: increment shiny dex if it's a shiny
+      if (entry.isShiny) {
+        this.shinyDexCount += 1
+      }
+
+      this.pokedex.push(entry)
+      this.saveToStorage()
+      return entry
+    },
+
     addPokemonToTeam(pokemon) {
       const pokemonId = toPokemonId(pokemon)
       if (pokemonId === null) {
@@ -532,39 +538,88 @@ export const usePlayerStore = defineStore('player', {
         }
       }
 
-      // Team full: keep selection in memory until user confirms swap target slot.
+      // Team full: keep selection in memory until user confirms swap target slot
       this._pendingPokemon = entry
       return {
         action: 'swap'
       }
     },
 
-    confirmSwap(slotIndex) {
-      if (!this._pendingPokemon) {
+    addSkinToWeapon(skinId, weaponName, skinName, skinImage) {
+      const weapon = this.findOwnedWeaponByName(weaponName)
+      if (!weapon) {
         return false
       }
 
-      if (slotIndex < 0 || slotIndex >= ACTIVE_TEAM_SIZE) {
-        return false
+      if (!Array.isArray(weapon.skins)) {
+        weapon.skins = []
       }
 
-      if (!this.hasPokemonLoadout(this._pendingPokemon)) {
-        return false
+      // Check if skin already owned by ID
+      if (weapon.skins.some((s) => s.id === skinId)) {
+        return false // already owned
       }
 
-      const newPokemonId = this._pendingPokemon.pokemonId
-      removeDuplicateInTeam(this.activeTeamIds, newPokemonId, slotIndex)
+      console.log(`[addSkinToWeapon] Adding skin ${skinName} to weapon ${weapon.name}`);
 
-      const replacedPokemonId = this.activeTeamIds[slotIndex]
-      this.activeTeamIds[slotIndex] = newPokemonId
+      weapon.skins.push({
+        id: skinId,
+        nom: skinName,
+        image: skinImage,
+      });
 
-      if (this.activePokemonId === null || this.activePokemonId === replacedPokemonId) {
-        this.activePokemonId = newPokemonId
-      }
-
-      this._pendingPokemon = null
-      this.saveToStorage()
+      this.saveToStorage();
       return true
     },
+
+    async addWeaponToCollection(weapon) {
+      console.log(`[addWeaponToCollection] Adding weapon ${weapon.name} to inventory`); 
+
+      this.weaponInventory.push({
+        id: weapon.id,
+        name: weapon.name,
+        quantity: 1,
+        skins: [],
+      })
+
+      // Load catalog if needed, then add default skin
+      await this.addDefaultSkinToWeapon(weapon.name);
+
+      this.saveToStorage();
+    },
+
+    async addDefaultSkinToWeapon(weaponName) {
+      // Ensure catalog is loaded first
+      await fetchWeaponsCatalog()
+      
+      const weapon = this.findOwnedWeaponByName(weaponName)
+      if (!weapon) {
+        console.warn(`[addDefaultSkinToWeapon] Weapon ${weaponName} not found in inventory`);
+        return false
+      }   
+      if (!Array.isArray(weapon.skins)) {
+        weapon.skins = []
+      }
+      const baseSkinId = `base-${weapon.id}` 
+      if (weapon.skins.some((s) => s.id === baseSkinId)) {
+        console.warn(`[addDefaultSkinToWeapon] Default skin for weapon ${weapon.name} already exists in inventory, skipping addition`);  
+        return false // default skin already added    
+      }      
+      const baseSkinImage = await getBaseSkinImageByName(weapon.name)
+      console.log(`[addDefaultSkinToWeapon] Base skin image for weapon ${weapon.name}: ${baseSkinImage}`);        
+      if (!baseSkinImage) {   
+        console.warn(`[addDefaultSkinToWeapon] No image found for default skin of weapon ${weapon.name}, skipping skin addition`);
+        return false // no image found for default skin     
+      }
+      console.log(`[addDefaultSkinToWeapon] Adding default skin for weapon ${weapon.name} to inventory`);  
+      weapon.skins.push({
+        id: baseSkinId, 
+        nom: "Default Skin", 
+        image: baseSkinImage,   
+      })      
+      this.saveToStorage();
+      return true 
+    }
+
   },
 })

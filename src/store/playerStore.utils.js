@@ -59,14 +59,28 @@ export function normalizeWeaponInventory(rawInventory) {
     }
 
     const rawSkins = Array.isArray(weapon.skins) ? weapon.skins : []
-    const uniqueSkinIds = [...new Set(rawSkins.filter((skinId) => Boolean(skinId)))]
+    const uniqueSkins = []
+    const seenSkinIds = new Set()
+
+    for (const skin of rawSkins) {
+      // Skins are now objects: { id, nom, image }
+      if (skin && typeof skin === 'object' && skin.id && !seenSkinIds.has(skin.id)) {
+        uniqueSkins.push({
+          id: skin.id,
+          nom: skin.nom || 'Skin',
+          image: skin.image || '',
+        })
+        seenSkinIds.add(skin.id)
+      }
+    }
+
     const rawQuantity = Number(weapon.quantity)
     const quantity = Number.isFinite(rawQuantity) ? Math.max(Math.round(rawQuantity), 1) : 1
 
     normalized.push({
       id: weaponId,
       name: weapon.name || 'Arme',
-      skins: uniqueSkinIds,
+      skins: uniqueSkins,
       quantity,
     })
     seenIds.add(weaponId)
