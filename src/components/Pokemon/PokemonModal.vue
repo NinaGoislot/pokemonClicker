@@ -2,7 +2,7 @@
     <Transition name="modal">
         <div v-if="isOpen" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
             @click.self="close">
-            <BaseCard bgColor="bg-neutral-bg-dark" class="dark-border w-1/2">
+            <BaseCard bgColor="bg-neutral-bg-dark" class="dark-border w-full lg:w-1/2">
                 <div class="flex justify-between mb-4">
                     <div>
                         <p class="text-xs text-legend text-light">Pokédex #{{ pokemon.pokemonId }}</p>

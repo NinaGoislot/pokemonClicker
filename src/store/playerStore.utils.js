@@ -26,6 +26,43 @@ export function getSpriteFront(pokemon, pokemonId) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`
 }
 
+export function getPokemonBaseAttack(pokemon) {
+  if (!pokemon || typeof pokemon !== 'object') {
+    return 100
+  }
+
+  let attackValue = pokemon.baseAttack
+  if (attackValue == null && pokemon.stats && typeof pokemon.stats === 'object') {
+    attackValue = pokemon.stats.attack
+  }
+
+  const attack = Number(attackValue)
+
+  if (!Number.isFinite(attack)) {
+    return 100
+  }
+
+  return Math.max(Math.round(attack), 1)
+}
+
+export function getPokemonBaseHp(pokemon) {
+  if (!pokemon || typeof pokemon !== 'object') {
+    return 80
+  }
+
+  let hpValue = pokemon.baseHp
+  if (hpValue == null && pokemon.stats && typeof pokemon.stats === 'object') {
+    hpValue = pokemon.stats.hp
+  }
+
+  const hp = Number(hpValue)
+  if (!Number.isFinite(hp)) {
+    return 80
+  }
+
+  return Math.max(Math.round(hp), 1)
+}
+
 export function normalizeWeapon(rawWeapon) {
   if (!rawWeapon || typeof rawWeapon !== 'object') {
     return null
@@ -87,43 +124,6 @@ export function normalizeWeaponInventory(rawInventory) {
   }
 
   return normalized
-}
-
-export function getPokemonBaseAttack(pokemon) {
-  if (!pokemon || typeof pokemon !== 'object') {
-    return 100
-  }
-
-  let attackValue = pokemon.baseAttack
-  if (attackValue == null && pokemon.stats && typeof pokemon.stats === 'object') {
-    attackValue = pokemon.stats.attack
-  }
-
-  const attack = Number(attackValue)
-
-  if (!Number.isFinite(attack)) {
-    return 100
-  }
-
-  return Math.max(Math.round(attack), 1)
-}
-
-export function getPokemonBaseHp(pokemon) {
-  if (!pokemon || typeof pokemon !== 'object') {
-    return 80
-  }
-
-  let hpValue = pokemon.baseHp
-  if (hpValue == null && pokemon.stats && typeof pokemon.stats === 'object') {
-    hpValue = pokemon.stats.hp
-  }
-
-  const hp = Number(hpValue)
-  if (!Number.isFinite(hp)) {
-    return 80
-  }
-
-  return Math.max(Math.round(hp), 1)
 }
 
 export function normalizePokemonEntry(pokemon) {

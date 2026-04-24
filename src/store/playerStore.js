@@ -94,6 +94,7 @@ export const usePlayerStore = defineStore('player', {
       return Math.max(quantity - assigned, 0)
     },
     
+    // ---------------- STORAGE ---------------- 
     loadFromStorage() {
       if (this.isLoaded) {
         return
@@ -212,68 +213,8 @@ export const usePlayerStore = defineStore('player', {
       this.saveToStorage()
     },
 
-    addCredits(amount) {
-      this.profile.wallet += amount
-      this.saveToStorage()
-    },
-
-    spendCredits(amount) {
-      const parsedAmount = Math.max(Number(amount) || 0, 0)
-      if (this.profile.wallet < parsedAmount) {
-        return false
-      }
-
-      this.profile.wallet -= parsedAmount
-      this.saveToStorage()
-      return true
-    },
-
-    loseCreditsPercent(percent) {
-      const parsedPercent = Math.max(Number(percent) || 0, 0)
-      if (!parsedPercent) {
-        return 0
-      }
-
-      const loss = Math.floor(this.profile.wallet * (parsedPercent / 100))
-      if (loss <= 0) {
-        return 0
-      }
-
-      this.profile.wallet = Math.max(this.profile.wallet - loss, 0)
-      this.saveToStorage()
-      return loss
-    },
-
-    setPokemonWeaponLoadout(pokemonId, weaponName, skinId) {
-      const entry = this.findPokedexEntryById(pokemonId)
-      if (!entry) {
-        return false
-      }
-
-      const weapon = this.findOwnedWeaponByName(weaponName)
-      if (!weapon) {
-        return false
-      }
-
-      // Check if skin exists in weapon.skins
-      const canUseSkin = Array.isArray(weapon.skins) && weapon.skins.some((s) => s.id === skinId)
-      if (!canUseSkin) {
-        return false
-      }
-
-      // Exclude current pokemon so reassignment doesn't consume an extra weapon unit
-      const availableUnits = this.getWeaponAvailableUnits(weapon.name, entry.pokemonId)
-      if (availableUnits <= 0) {
-        return false
-      }
-
-      entry.weaponId = weapon.id
-      entry.skinId = skinId
-      this.saveToStorage()
-      return true
-    },
-
     clearPokemonWeaponLoadout(pokemonId) {
+      // Clear assigned weapon and skin from a Pokemon (used when removing from team or when assigned weapon gets sold out)
       const entry = this.findPokedexEntryById(pokemonId)
       if (!entry) {
         return false
@@ -285,6 +226,7 @@ export const usePlayerStore = defineStore('player', {
       return true
     },
 
+    // ---------------- SHOP ---------------- 
     buyWeapon(weapon) {
       if (!weapon || !weapon.id) {
         return { success: false, reason: 'invalid' }
@@ -350,6 +292,30 @@ export const usePlayerStore = defineStore('player', {
       this.saveToStorage()
       return skins
     },
+
+    giveWeaponToPlayer(weapon) {
+      // Centralized function to add a weapon to player inventory
+      if (!weapon || !weapon.id || !weapon.name) {
+        console.warn('Invalid weapon data, cannot add to player inventory', weapon);
+        return { success: false, reason: 'invalid' }
+      }
+
+      const existing = this.findOwnedWeaponByName(weapon.name)
+      if (existing) {
+        // Weapon already owned: increment quantity
+        existing.quantity += 1
+        console.log(`Weapon ${weapon.name} already owned, incrementing quantity to ${existing.quantity}`);
+      } else {
+        // New weapon: add with only default skin (async)
+        this.addWeaponToCollection(weapon);
+      }
+
+      this.saveToStorage()
+      return { success: true, quantity: this.findOwnedWeaponByName(weapon.name).quantity }
+    },
+
+
+    // ---------------- TEAM MANAGEMENT ----------------
 
     confirmSwap(slotIndex) {
       if (!this._pendingPokemon) {
@@ -428,28 +394,68 @@ export const usePlayerStore = defineStore('player', {
       return true
     },
 
-    giveWeaponToPlayer(weapon) {
-      // Centralized function to add a weapon to player inventory
-      if (!weapon || !weapon.id || !weapon.name) {
-        console.warn('Invalid weapon data, cannot add to player inventory', weapon);
-        return { success: false, reason: 'invalid' }
+    setPokemonWeaponLoadout(pokemonId, weaponName, skinId) {
+      const entry = this.findPokedexEntryById(pokemonId)
+      if (!entry) {
+        return false
       }
 
-      const existing = this.findOwnedWeaponByName(weapon.name)
-      if (existing) {
-        // Weapon already owned: increment quantity
-        existing.quantity += 1
-        console.log(`Weapon ${weapon.name} already owned, incrementing quantity to ${existing.quantity}`);
-      } else {
-        // New weapon: add with only default skin (async)
-        this.addWeaponToCollection(weapon);
+      const weapon = this.findOwnedWeaponByName(weaponName)
+      if (!weapon) {
+        return false
       }
 
+      // Check if skin exists in weapon.skins
+      const canUseSkin = Array.isArray(weapon.skins) && weapon.skins.some((s) => s.id === skinId)
+      if (!canUseSkin) {
+        return false
+      }
+
+      // Exclude current pokemon so reassignment doesn't consume an extra weapon unit
+      const availableUnits = this.getWeaponAvailableUnits(weapon.name, entry.pokemonId)
+      if (availableUnits <= 0) {
+        return false
+      }
+
+      entry.weaponId = weapon.id
+      entry.skinId = skinId
       this.saveToStorage()
-      return { success: true, quantity: this.findOwnedWeaponByName(weapon.name).quantity }
+      return true
     },
 
-  
+    // ---------------- CREDITS MANAGER ----------------
+
+    addCredits(amount) {
+      this.profile.wallet += amount
+      this.saveToStorage()
+    },
+
+    spendCredits(amount) {
+      const parsedAmount = Math.max(Number(amount) || 0, 0)
+      if (this.profile.wallet < parsedAmount) {
+        return false
+      }
+
+      this.profile.wallet -= parsedAmount
+      this.saveToStorage()
+      return true
+    },
+
+    loseCreditsPercent(percent) {
+      const parsedPercent = Math.max(Number(percent) || 0, 0)
+      if (!parsedPercent) {
+        return 0
+      }
+
+      const loss = Math.floor(this.profile.wallet * (parsedPercent / 100))
+      if (loss <= 0) {
+        return 0
+      }
+
+      this.profile.wallet = Math.max(this.profile.wallet - loss, 0)
+      this.saveToStorage()
+      return loss
+    },
     
     // ---------------- ADDERs ----------------
     addPokemonToPokedex(pokemon, isShiny = false) {
