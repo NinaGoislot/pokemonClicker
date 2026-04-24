@@ -36,13 +36,13 @@
                                 <div class="flex flex-col gap-1 text-md">
                                     <div v-for="(val, stat) in fullData.stats" :key="stat"
                                         class="flex justify-between items-center">
-                                        <span class="w-1/10 text-disabled">{{ statName(stat) }}</span>
+                                        <span class="w-1/5 md:w-1/10 text-disabled">{{ statName(stat) }}</span>
                                         <div class="flex-1 h-1.5 bg-white/20 rounded mx-1">
                                             <div class="h-full bg-gradient rounded"
                                                 :style="{ width: (val / STATS_BAR_MAX_VALUE) * 100 + '%' }">
                                             </div>
                                         </div>
-                                        <span class="w-1/12 text-right text-light">{{ val }}</span>
+                                        <span class="w-1/6 text-right text-light">{{ val }}</span>
                                     </div>
                                 </div>
                             </div>
